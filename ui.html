@@ -297,7 +297,7 @@
     <div class="gap-bar">
       <div class="gap-input-wrap">
         <span class="gap-label">Gap</span>
-        <input id="gap-input" class="gap-input" type="number" value="0" step="1" />
+        <input id="gap-input" class="gap-input" type="text" inputmode="numeric" value="0" spellcheck="false" autocomplete="off" />
         <span class="gap-unit">px</span>
       </div>
       <button class="gap-btn" data-axis="h" disabled title="Apply Horizontal Gap between 1st & 2nd">
@@ -401,11 +401,17 @@
       return isNaN(val) ? 0 : val;
     }
 
+    function normalizeGapInput() {
+      const val = getGapValue();
+      gapInput.value = String(val);
+      return val;
+    }
+
     alignBtns.forEach((btn) => {
       btn.addEventListener("click", () => {
         const direction = btn.getAttribute("data-dir");
         parent.postMessage(
-          { pluginMessage: { type: "align", direction, gap: getGapValue() } },
+          { pluginMessage: { type: "align", direction, gap: normalizeGapInput() } },
           "*"
         );
       });
@@ -415,18 +421,29 @@
       btn.addEventListener("click", () => {
         const axis = btn.getAttribute("data-axis");
         parent.postMessage(
-          { pluginMessage: { type: "apply-gap", axis, gap: getGapValue() } },
+          { pluginMessage: { type: "apply-gap", axis, gap: normalizeGapInput() } },
           "*"
         );
       });
     });
 
     gapInput.addEventListener("focus", () => {
-      gapInput.select();
+      setTimeout(() => gapInput.select(), 0);
     });
 
     gapInput.addEventListener("mouseup", (e) => {
       e.preventDefault();
+    });
+
+    gapInput.addEventListener("blur", () => {
+      normalizeGapInput();
+    });
+
+    gapInput.addEventListener("input", () => {
+      const cleaned = gapInput.value.replace(/[^0-9.-]/g, "");
+      if (gapInput.value !== cleaned) {
+        gapInput.value = cleaned;
+      }
     });
 
     document.querySelector(".gap-input-wrap").addEventListener("click", (e) => {
@@ -442,13 +459,15 @@
         const step = e.shiftKey ? 10 : 1;
         const delta = e.key === "ArrowUp" ? step : -step;
         gapInput.value = String(getGapValue() + delta);
+        gapInput.select();
         return;
       }
       if (e.key === "Enter") {
         parent.postMessage(
-          { pluginMessage: { type: "apply-gap", axis: "auto", gap: getGapValue() } },
+          { pluginMessage: { type: "apply-gap", axis: "auto", gap: normalizeGapInput() } },
           "*"
         );
+        gapInput.select();
       }
     });
 
