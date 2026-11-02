@@ -422,6 +422,13 @@
     });
 
     gapInput.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        const delta = e.key === "ArrowUp" ? step : -step;
+        gapInput.value = String(getGapValue() + delta);
+        return;
+      }
       if (e.key === "Enter") {
         parent.postMessage(
           { pluginMessage: { type: "apply-gap", axis: "auto", gap: getGapValue() } },
@@ -473,6 +480,9 @@
     }
 
     fitWindowToContent();
+    if (typeof ResizeObserver !== "undefined") {
+      new ResizeObserver(fitWindowToContent).observe(document.getElementById("app"));
+    }
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(fitWindowToContent);
     }

@@ -1,4 +1,4 @@
-figma.showUI(__html__, { width: 280, height: 395, themeColors: true });
+figma.showUI(__html__, { width: 280, height: 400, themeColors: true });
 
 // Track selection order because Figma's selection array does not always preserve click order.
 let orderedSelectionIds = [];
@@ -49,6 +49,15 @@ figma.on("currentpagechange", () => {
   orderedSelectionIds = [];
   syncSelectionOrder(true);
 });
+
+function isAncestor(ancestor, node) {
+  let p = node.parent;
+  while (p) {
+    if (p.id === ancestor.id) return true;
+    p = p.parent;
+  }
+  return false;
+}
 
 function getAbsoluteBounds(node) {
   if (node.absoluteBoundingBox) {
@@ -119,6 +128,11 @@ function validateAndPrepareNodes() {
   const first = nodes[0];  // 1st selected: node to move
   const second = nodes[1]; // 2nd selected: reference/anchor node
 
+  if (isAncestor(first, second)) {
+    figma.notify("1st layer contains the 2nd layer. Click \"Swap 1st & 2nd\" to move the inner layer.", { error: true });
+    return null;
+  }
+
   if (first.locked) {
     figma.notify(`"${first.name}" is locked. Unlock it to move.`, { error: true });
     return null;
@@ -145,7 +159,7 @@ function validateAndPrepareNodes() {
     }
   }
 
-  return { first, second };
+  return { first, second, nodes };
 }
 
 figma.ui.onmessage = (msg) => {
@@ -213,6 +227,7 @@ figma.ui.onmessage = (msg) => {
 
     try {
       setAbsolutePosition(first, newAbsX, newAbsY);
+      sendSelectionState();
     } catch (err) {
       figma.notify("Cannot move this layer (it may be inside a component instance).", { error: true });
     }
@@ -234,23 +249,33 @@ figma.ui.onmessage = (msg) => {
 
     let axis = msg.axis;
     if (axis === "auto") {
-      const dx = Math.abs(firstCenterX - secondCenterX);
-      const dy = Math.abs(firstCenterY - secondCenterY);
-      axis = dx >= dy ? "h" : "v";
+      const sepX = Math.max(
+        firstRect.x - (secondRect.x + secondRect.width),
+        secondRect.x - (firstRect.x + firstRect.width)
+      );
+      const sepY = Math.max(
+        firstRect.y - (secondRect.y + secondRect.height),
+        secondRect.y - (firstRect.y + firstRect.height)
+      );
+      if (sepX > 0 || sepY > 0) {
+        axis = sepX >= sepY ? "h" : "v";
+      } else {
+        const dx = Math.abs(firstCenterX - secondCenterX);
+        const dy = Math.abs(firstCenterY - secondCenterY);
+        axis = dx >= dy ? "h" : "v";
+      }
     }
 
     let newAbsX = firstRect.x;
     let newAbsY = firstRect.y;
 
     if (axis === "h") {
-      // Place 1st frame at `gap` distance horizontally from 2nd frame on its current side
       if (firstCenterX < secondCenterX) {
         newAbsX = secondRect.x - firstRect.width - gap;
       } else {
         newAbsX = secondRect.x + secondRect.width + gap;
       }
     } else if (axis === "v") {
-      // Place 1st frame at `gap` distance vertically from 2nd frame on its current side
       if (firstCenterY < secondCenterY) {
         newAbsY = secondRect.y - firstRect.height - gap;
       } else {
@@ -260,6 +285,7 @@ figma.ui.onmessage = (msg) => {
 
     try {
       setAbsolutePosition(first, newAbsX, newAbsY);
+      sendSelectionState();
     } catch (err) {
       figma.notify("Cannot move this layer (it may be inside a component instance).", { error: true });
     }
