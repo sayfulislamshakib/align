@@ -143,23 +143,87 @@ function validateAndPrepareNodes() {
     return null;
   }
 
-  // Handle Auto Layout parent on the moving node
-  if (
-    first.parent &&
-    "layoutMode" in first.parent &&
-    first.parent.layoutMode !== "NONE" &&
-    "layoutPositioning" in first &&
-    first.layoutPositioning !== "ABSOLUTE"
-  ) {
-    try {
-      first.layoutPositioning = "ABSOLUTE";
-    } catch (err) {
-      figma.notify("Cannot move layer inside an Auto Layout frame.", { error: true });
-      return null;
-    }
+  return { first, second, nodes };
+}
+
+function isInAutoLayoutFlow(node) {
+  return Boolean(
+    node.parent &&
+    "layoutMode" in node.parent &&
+    node.parent.layoutMode !== "NONE" &&
+    (!("layoutPositioning" in node) || node.layoutPositioning !== "ABSOLUTE")
+  );
+}
+
+function alignInAutoLayout(first, second, direction, gap) {
+  const parent = first.parent;
+  if (!parent || !("layoutMode" in parent)) return false;
+
+  // Only adjust Auto Layout properties when aligning with its parent or a sibling in the same Auto Layout frame
+  if (second.id !== parent.id && (!second.parent || second.parent.id !== parent.id)) {
+    figma.notify(`"${first.name}" is inside an Auto Layout frame.`, { error: true });
+    return true;
   }
 
-  return { first, second, nodes };
+  const isHorizontal = parent.layoutMode === "HORIZONTAL";
+
+  switch (direction) {
+    case "left":
+      if (isHorizontal) {
+        parent.primaryAxisAlignItems = "MIN";
+      } else {
+        parent.counterAxisAlignItems = "MIN";
+      }
+      if (gap > 0 && "paddingLeft" in parent) parent.paddingLeft = gap;
+      break;
+    case "right":
+      if (isHorizontal) {
+        parent.primaryAxisAlignItems = "MAX";
+      } else {
+        parent.counterAxisAlignItems = "MAX";
+      }
+      if (gap > 0 && "paddingRight" in parent) parent.paddingRight = gap;
+      break;
+    case "top":
+      if (isHorizontal) {
+        parent.counterAxisAlignItems = "MIN";
+      } else {
+        parent.primaryAxisAlignItems = "MIN";
+      }
+      if (gap > 0 && "paddingTop" in parent) parent.paddingTop = gap;
+      break;
+    case "bottom":
+      if (isHorizontal) {
+        parent.counterAxisAlignItems = "MAX";
+      } else {
+        parent.primaryAxisAlignItems = "MAX";
+      }
+      if (gap > 0 && "paddingBottom" in parent) parent.paddingBottom = gap;
+      break;
+    case "center-h":
+      if (isHorizontal) {
+        if (parent.primaryAxisAlignItems === "SPACE_BETWEEN") {
+          parent.primaryAxisAlignItems = "CENTER";
+        } else {
+          parent.primaryAxisAlignItems = "CENTER";
+        }
+      } else {
+        parent.counterAxisAlignItems = "CENTER";
+      }
+      break;
+    case "center-v":
+      if (isHorizontal) {
+        parent.counterAxisAlignItems = "CENTER";
+      } else {
+        parent.primaryAxisAlignItems = "CENTER";
+      }
+      break;
+    case "center":
+      parent.primaryAxisAlignItems = "CENTER";
+      parent.counterAxisAlignItems = "CENTER";
+      break;
+  }
+  return true;
 }
 
 figma.ui.onmessage = (msg) => {
@@ -191,9 +255,16 @@ figma.ui.onmessage = (msg) => {
     if (!pair) return;
 
     const { first, second } = pair;
+    const gap = typeof msg.gap === "number" && !isNaN(msg.gap) ? msg.gap : 0;
+
+    if (isInAutoLayoutFlow(first)) {
+      alignInAutoLayout(first, second, msg.direction, gap);
+      sendSelectionState();
+      return;
+    }
+
     const firstRect = getAbsoluteBounds(first);
     const secondRect = getAbsoluteBounds(second);
-    const gap = typeof msg.gap === "number" && !isNaN(msg.gap) ? msg.gap : 0;
 
     let newAbsX = firstRect.x;
     let newAbsY = firstRect.y;
@@ -238,9 +309,21 @@ figma.ui.onmessage = (msg) => {
     if (!pair) return;
 
     const { first, second } = pair;
+    const gap = typeof msg.gap === "number" && !isNaN(msg.gap) ? msg.gap : 0;
+
+    if (isInAutoLayoutFlow(first)) {
+      const parent = first.parent;
+      if (parent && "itemSpacing" in parent && (second.id === parent.id || (second.parent && second.parent.id === parent.id))) {
+        parent.itemSpacing = Math.max(0, gap);
+      } else {
+        figma.notify(`"${first.name}" is inside an Auto Layout frame.`, { error: true });
+      }
+      sendSelectionState();
+      return;
+    }
+
     const firstRect = getAbsoluteBounds(first);
     const secondRect = getAbsoluteBounds(second);
-    const gap = typeof msg.gap === "number" && !isNaN(msg.gap) ? msg.gap : 0;
 
     const firstCenterX = firstRect.x + firstRect.width / 2;
     const firstCenterY = firstRect.y + firstRect.height / 2;
