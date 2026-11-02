@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    html, body {
+      overflow: hidden;
+      height: auto;
+      scrollbar-width: none;
+    }
+
+    ::-webkit-scrollbar {
+      display: none;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: #2c2c2c;
+      color: #ffffff;
+      font-size: 12px;
+      user-select: none;
+    }
+
+    #app {
+      padding: 12px;
+    }
+
+    .selection-card {
+      background: #383838;
+      border: 1px solid #444444;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+      position: relative;
+    }
+
+    .node-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 4px 0;
+    }
+
+    .node-row + .node-row {
+      border-top: 1px solid #444444;
+      margin-top: 4px;
+      padding-top: 8px;
+    }
+
+    .badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .badge.move {
+      background: rgba(13, 153, 255, 0.2);
+      color: #3ea8ff;
+    }
+
+    .badge.anchor {
+      background: #4a4a4a;
+      color: #cccccc;
+    }
+
+    .node-name {
+      flex: 1;
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #ffffff;
+    }
+
+    .node-name.empty {
+      color: #888888;
+      font-style: italic;
+      font-weight: 400;
+    }
+
+    .swap-btn {
+      background: #2c2c2c;
+      border: 1px solid #4a4a4a;
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      color: #e5e5e5;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 8px;
+      width: 100%;
+      justify-content: center;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .swap-btn:hover:not(:disabled) {
+      background: #444444;
+      border-color: #5a5a5a;
+    }
+
+    .swap-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #b3b3b3;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 8px;
+    }
+
+    .gap-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .gap-input-wrap {
+      display: flex;
+      align-items: center;
+      background: #383838;
+      border: 1px solid #444444;
+      border-radius: 6px;
+      padding: 0 8px;
+      height: 30px;
+      flex: 1;
+      transition: border-color 0.15s;
+    }
+
+    .gap-input-wrap:focus-within {
+      border-color: #0d99ff;
+    }
+
+    .gap-label {
+      font-size: 11px;
+      color: #999999;
+      margin-right: 6px;
+      font-weight: 500;
+    }
+
+    .gap-input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 500;
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+
+    .gap-input::-webkit-outer-spin-button,
+    .gap-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .gap-unit {
+      font-size: 10px;
+      color: #777777;
+      margin-left: 4px;
+    }
+
+    .gap-btn {
+      height: 30px;
+      padding: 0 9px;
+      background: #383838;
+      border: 1px solid #444444;
+      border-radius: 6px;
+      color: #e5e5e5;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+      transition: all 0.12s ease;
+    }
+
+    .gap-btn:hover:not(:disabled) {
+      background: rgba(13, 153, 255, 0.15);
+      border-color: #0d99ff;
+      color: #3ea8ff;
+    }
+
+    .gap-btn:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    .gap-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .gap-btn svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+    }
+
+    button.align-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 10px 6px;
+      background: #383838;
+      border: 1px solid #444444;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #e5e5e5;
+      font-size: 11px;
+      font-weight: 500;
+      transition: all 0.12s ease;
+    }
+
+    button.align-btn:hover:not(:disabled) {
+      background: rgba(13, 153, 255, 0.15);
+      border-color: #0d99ff;
+      color: #3ea8ff;
+    }
+
+    button.align-btn:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    button.align-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    button.align-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+      stroke: none;
+    }
+
+    button.align-btn svg .bar-secondary {
+      opacity: 0.45;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="selection-card">
+      <div class="node-row">
+        <span class="badge move">1st (Moves)</span>
+        <span id="first-name" class="node-name empty">Select 1st frame</span>
+      </div>
+      <div class="node-row">
+        <span class="badge anchor">2nd (Target)</span>
+        <span id="second-name" class="node-name empty">Select 2nd frame</span>
+      </div>
+      <button id="swap-btn" class="swap-btn" disabled title="Swap 1st and 2nd frames">
+        ⇅ Swap 1st &amp; 2nd
+      </button>
+    </div>
+
+    <div class="section-title">Gap Between Selected</div>
+    <div class="gap-bar">
+      <div class="gap-input-wrap">
+        <span class="gap-label">Gap</span>
+        <input id="gap-input" class="gap-input" type="number" value="0" step="1" />
+        <span class="gap-unit">px</span>
+      </div>
+      <button class="gap-btn" data-axis="h" disabled title="Apply Horizontal Gap between 1st & 2nd">
+        <svg viewBox="0 0 16 16">
+          <rect x="1.5" y="3" width="3" height="10" rx="0.8" style="opacity:0.45" />
+          <rect x="11.5" y="3" width="3" height="10" rx="0.8" />
+          <rect x="6" y="7.25" width="4" height="1.5" rx="0.75" />
+        </svg>
+        H Gap
+      </button>
+      <button class="gap-btn" data-axis="v" disabled title="Apply Vertical Gap between 1st & 2nd">
+        <svg viewBox="0 0 16 16">
+          <rect x="3" y="1.5" width="10" height="3" rx="0.8" style="opacity:0.45" />
+          <rect x="3" y="11.5" width="10" height="3" rx="0.8" />
+          <rect x="7.25" y="6" width="1.5" height="4" rx="0.75" />
+        </svg>
+        V Gap
+      </button>
+    </div>
+
+    <div class="section-title">Align 1st to 2nd</div>
+
+    <div class="grid">
+      <button class="align-btn" data-dir="left" disabled>
+        <svg viewBox="0 0 20 20">
+          <rect x="2" y="2" width="2" height="16" rx="1" />
+          <rect x="6" y="4" width="12" height="4.5" rx="1.2" class="bar-secondary" />
+          <rect x="6" y="11.5" width="8" height="4.5" rx="1.2" />
+        </svg>
+        Left
+      </button>
+
+      <button class="align-btn" data-dir="center" disabled>
+        <svg viewBox="0 0 20 20">
+          <rect x="9.25" y="2" width="1.5" height="16" rx="0.75" class="bar-secondary" />
+          <rect x="2" y="9.25" width="16" height="1.5" rx="0.75" class="bar-secondary" />
+          <rect x="6" y="6" width="8" height="8" rx="2" />
+        </svg>
+        Center
+      </button>
+
+      <button class="align-btn" data-dir="right" disabled>
+        <svg viewBox="0 0 20 20">
+          <rect x="16" y="2" width="2" height="16" rx="1" />
+          <rect x="2" y="4" width="12" height="4.5" rx="1.2" class="bar-secondary" />
+          <rect x="6" y="11.5" width="8" height="4.5" rx="1.2" />
+        </svg>
+        Right
+      </button>
+
+      <button class="align-btn" data-dir="top" disabled>
+        <svg viewBox="0 0 20 20">
+          <rect x="2" y="2" width="16" height="2" rx="1" />
+          <rect x="4" y="6" width="4.5" height="12" rx="1.2" class="bar-secondary" />
+          <rect x="11.5" y="6" width="4.5" height="8" rx="1.2" />
+        </svg>
+        Top
+      </button>
+
+      <button class="align-btn" data-dir="bottom" disabled>
+        <svg viewBox="0 0 20 20">
+          <rect x="2" y="16" width="16" height="2" rx="1" />
+          <rect x="4" y="2" width="4.5" height="12" rx="1.2" class="bar-secondary" />
+          <rect x="11.5" y="6" width="4.5" height="8" rx="1.2" />
+        </svg>
+        Bottom
+      </button>
+
+      <button class="align-btn" data-dir="center-h" disabled title="Horizontal Center">
+        <svg viewBox="0 0 20 20">
+          <rect x="9" y="2" width="2" height="16" rx="1" />
+          <rect x="3" y="4.5" width="14" height="4.5" rx="1.2" class="bar-secondary" />
+          <rect x="5.5" y="11" width="9" height="4.5" rx="1.2" />
+        </svg>
+        Center H
+      </button>
+    </div>
+
+    <div class="grid-2">
+      <button class="align-btn" data-dir="center-v" disabled title="Vertical Center" style="grid-column: span 2; flex-direction: row; padding: 8px;">
+        <svg viewBox="0 0 20 20">
+          <rect x="2" y="9" width="16" height="2" rx="1" />
+          <rect x="4.5" y="3" width="4.5" height="14" rx="1.2" class="bar-secondary" />
+          <rect x="11" y="5.5" width="4.5" height="9" rx="1.2" />
+        </svg>
+        Center Vertically (Center V)
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const firstNameEl = document.getElementById("first-name");
+    const secondNameEl = document.getElementById("second-name");
+    const swapBtn = document.getElementById("swap-btn");
+    const gapInput = document.getElementById("gap-input");
+    const gapBtns = document.querySelectorAll(".gap-btn");
+    const alignBtns = document.querySelectorAll(".align-btn");
+
+    function getGapValue() {
+      const val = parseFloat(gapInput.value);
+      return isNaN(val) ? 0 : val;
+    }
+
+    alignBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const direction = btn.getAttribute("data-dir");
+        parent.postMessage(
+          { pluginMessage: { type: "align", direction, gap: getGapValue() } },
+          "*"
+        );
+      });
+    });
+
+    gapBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const axis = btn.getAttribute("data-axis");
+        parent.postMessage(
+          { pluginMessage: { type: "apply-gap", axis, gap: getGapValue() } },
+          "*"
+        );
+      });
+    });
+
+    gapInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        parent.postMessage(
+          { pluginMessage: { type: "apply-gap", axis: "auto", gap: getGapValue() } },
+          "*"
+        );
+      }
+    });
+
+    swapBtn.addEventListener("click", () => {
+      parent.postMessage({ pluginMessage: { type: "swap-order" } }, "*");
+    });
+
+    window.onmessage = (event) => {
+      const msg = event.data && event.data.pluginMessage;
+      if (!msg || msg.type !== "selection-updated") return;
+
+      if (msg.first) {
+        firstNameEl.textContent = msg.first.name;
+        firstNameEl.classList.remove("empty");
+      } else {
+        firstNameEl.textContent = "Select 1st frame";
+        firstNameEl.classList.add("empty");
+      }
+
+      if (msg.second) {
+        secondNameEl.textContent = msg.second.name;
+        secondNameEl.classList.remove("empty");
+      } else {
+        secondNameEl.textContent = "Select 2nd frame";
+        secondNameEl.classList.add("empty");
+      }
+
+      const ready = Boolean(msg.first && msg.second);
+      swapBtn.disabled = !ready;
+      gapBtns.forEach((btn) => {
+        btn.disabled = !ready;
+      });
+      alignBtns.forEach((btn) => {
+        btn.disabled = !ready;
+      });
+    };
+
+    function fitWindowToContent() {
+      const appEl = document.getElementById("app");
+      const height = Math.ceil(appEl.getBoundingClientRect().height);
+      if (height > 0) {
+        parent.postMessage({ pluginMessage: { type: "resize", height } }, "*");
+      }
+    }
+
+    fitWindowToContent();
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(fitWindowToContent);
+    }
+    window.addEventListener("load", fitWindowToContent);
+
+    parent.postMessage({ pluginMessage: { type: "ui-ready" } }, "*");
+  </script>
+</body>
+</html>
