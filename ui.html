@@ -421,6 +421,21 @@
       });
     });
 
+    gapInput.addEventListener("focus", () => {
+      gapInput.select();
+    });
+
+    gapInput.addEventListener("mouseup", (e) => {
+      e.preventDefault();
+    });
+
+    document.querySelector(".gap-input-wrap").addEventListener("click", (e) => {
+      if (e.target !== gapInput) {
+        gapInput.focus();
+        gapInput.select();
+      }
+    });
+
     gapInput.addEventListener("keydown", (e) => {
       if (e.key === "ArrowUp" || e.key === "ArrowDown") {
         e.preventDefault();
