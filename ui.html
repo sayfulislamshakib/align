@@ -24,138 +24,199 @@
     }
 
     body {
-      margin: 0;
-      padding: 0;
       background: #2c2c2c;
       color: #ffffff;
-      font-size: 12px;
+      font-size: 11px;
       user-select: none;
     }
 
     #app {
-      padding: 12px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
 
-    .selection-card {
-      background: #383838;
-      border: 1px solid #444444;
-      border-radius: 8px;
-      padding: 10px;
-      margin-bottom: 10px;
-      position: relative;
-    }
-
-    .node-row {
+    /* Row 1: Compact 1st <-> 2nd Selection Bar */
+    .selection-bar {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding: 4px 0;
+      gap: 4px;
+      background: #383838;
+      border-radius: 6px;
+      padding: 3px 4px;
+      height: 28px;
     }
 
-    .node-row + .node-row {
-      border-top: 1px solid #444444;
-      margin-top: 4px;
-      padding-top: 8px;
+    .node-pill {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 5px;
     }
 
-    .badge {
-      font-size: 10px;
-      font-weight: 600;
-      padding: 2px 6px;
-      border-radius: 4px;
-      white-space: nowrap;
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
     }
 
-    .badge.move {
-      background: rgba(13, 153, 255, 0.2);
-      color: #3ea8ff;
+    .dot.move {
+      background: #0d99ff;
     }
 
-    .badge.anchor {
-      background: #4a4a4a;
-      color: #cccccc;
+    .dot.anchor {
+      background: #888888;
     }
 
     .node-name {
-      flex: 1;
-      font-weight: 500;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      color: #ffffff;
+      font-size: 11px;
+      font-weight: 500;
+      color: #e5e5e5;
     }
 
     .node-name.empty {
-      color: #888888;
-      font-style: italic;
+      color: #777777;
       font-weight: 400;
     }
 
     .swap-btn {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
       background: #2c2c2c;
-      border: 1px solid #4a4a4a;
-      border-radius: 6px;
-      padding: 5px 8px;
-      font-size: 11px;
+      border: none;
+      border-radius: 4px;
+      color: #b3b3b3;
       cursor: pointer;
-      color: #e5e5e5;
       display: flex;
       align-items: center;
-      gap: 4px;
-      margin-top: 8px;
-      width: 100%;
       justify-content: center;
-      transition: background 0.15s, border-color 0.15s;
+      font-size: 11px;
+      transition: background 0.1s, color 0.1s;
     }
 
     .swap-btn:hover:not(:disabled) {
-      background: #444444;
-      border-color: #5a5a5a;
+      background: #4a4a4a;
+      color: #ffffff;
     }
 
     .swap-btn:disabled {
-      opacity: 0.4;
+      opacity: 0.35;
       cursor: not-allowed;
     }
 
-    .section-title {
-      font-size: 11px;
-      font-weight: 600;
-      color: #b3b3b3;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      margin-bottom: 8px;
+    /* Row 2: Figma Alignment Toolbar */
+    .figma-align-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
 
+    .figma-segmented {
+      display: flex;
+      align-items: center;
+      background: #383838;
+      border-radius: 6px;
+      padding: 2px;
+      gap: 1px;
+      flex: 1;
+    }
+
+    .figma-segmented.single {
+      flex: 0 0 auto;
+    }
+
+    button.align-btn {
+      flex: 1;
+      height: 24px;
+      min-width: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #e5e5e5;
+      transition: background 0.1s ease, color 0.1s ease;
+    }
+
+    button.align-btn:hover:not(:disabled) {
+      background: #4a4a4a;
+      color: #ffffff;
+    }
+
+    button.align-btn:active:not(:disabled) {
+      background: #0d99ff;
+      color: #ffffff;
+    }
+
+    button.align-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    button.align-btn svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      display: block;
+    }
+
+    .swap-btn svg {
+      width: 13px;
+      height: 13px;
+      fill: none;
+      display: block;
+    }
+
+    /* Row 3: Compact Gap Row */
     .gap-bar {
       display: flex;
       align-items: center;
-      gap: 6px;
-      margin-bottom: 10px;
+      gap: 4px;
     }
 
     .gap-input-wrap {
       display: flex;
       align-items: center;
       background: #383838;
-      border: 1px solid #444444;
+      border: 1px solid transparent;
       border-radius: 6px;
-      padding: 0 8px;
-      height: 30px;
+      padding: 0 7px;
+      height: 28px;
       flex: 1;
-      transition: border-color 0.15s;
+      transition: border-color 0.12s, background 0.12s;
+    }
+
+    .gap-input-wrap:hover {
+      border-color: #4a4a4a;
     }
 
     .gap-input-wrap:focus-within {
+      background: #2c2c2c;
       border-color: #0d99ff;
     }
 
-    .gap-label {
-      font-size: 11px;
-      color: #999999;
+    .gap-icon {
+      width: 14px;
+      height: 14px;
+      color: #888888;
+      fill: none;
       margin-right: 6px;
-      font-weight: 500;
+      flex-shrink: 0;
+      cursor: ew-resize;
+    }
+
+    .gap-icon:hover {
+      color: #cccccc;
     }
 
     .gap-input {
@@ -164,16 +225,10 @@
       border: none;
       outline: none;
       color: #ffffff;
-      font-size: 12px;
-      font-weight: 500;
+      font-size: 11px;
+      font-weight: 400;
       -moz-appearance: textfield;
       appearance: textfield;
-    }
-
-    .gap-input::-webkit-outer-spin-button,
-    .gap-input::-webkit-inner-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
     }
 
     .gap-unit {
@@ -182,12 +237,21 @@
       margin-left: 4px;
     }
 
-    .gap-btn {
-      height: 30px;
-      padding: 0 9px;
+    .gap-segmented {
+      display: flex;
+      align-items: center;
       background: #383838;
-      border: 1px solid #444444;
       border-radius: 6px;
+      padding: 2px;
+      gap: 1px;
+    }
+
+    .gap-btn {
+      height: 24px;
+      padding: 0 8px;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
       color: #e5e5e5;
       font-size: 11px;
       font-weight: 500;
@@ -195,18 +259,17 @@
       display: flex;
       align-items: center;
       gap: 4px;
-      white-space: nowrap;
-      transition: all 0.12s ease;
+      transition: background 0.1s ease, color 0.1s ease;
     }
 
     .gap-btn:hover:not(:disabled) {
-      background: rgba(13, 153, 255, 0.15);
-      border-color: #0d99ff;
-      color: #3ea8ff;
+      background: #4a4a4a;
+      color: #ffffff;
     }
 
     .gap-btn:active:not(:disabled) {
-      transform: translateY(1px);
+      background: #0d99ff;
+      color: #ffffff;
     }
 
     .gap-btn:disabled {
@@ -217,174 +280,112 @@
     .gap-btn svg {
       width: 14px;
       height: 14px;
-      fill: currentColor;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-      margin-bottom: 6px;
-    }
-
-    .grid-2 {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 6px;
-    }
-
-    button.align-btn {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 5px;
-      padding: 10px 6px;
-      background: #383838;
-      border: 1px solid #444444;
-      border-radius: 6px;
-      cursor: pointer;
-      color: #e5e5e5;
-      font-size: 11px;
-      font-weight: 500;
-      transition: all 0.12s ease;
-    }
-
-    button.align-btn:hover:not(:disabled) {
-      background: rgba(13, 153, 255, 0.15);
-      border-color: #0d99ff;
-      color: #3ea8ff;
-    }
-
-    button.align-btn:active:not(:disabled) {
-      transform: translateY(1px);
-    }
-
-    button.align-btn:disabled {
-      opacity: 0.35;
-      cursor: not-allowed;
-    }
-
-    button.align-btn svg {
-      width: 20px;
-      height: 20px;
-      fill: currentColor;
-      stroke: none;
-    }
-
-    button.align-btn svg .bar-secondary {
-      opacity: 0.45;
+      fill: none;
     }
   </style>
 </head>
 <body>
   <div id="app">
-    <div class="selection-card">
-      <div class="node-row">
-        <span class="badge move">1st (Moves)</span>
-        <span id="first-name" class="node-name empty">Select 1st frame</span>
+    <!-- Row 1: 1st (Moves) ⇄ 2nd (Target) -->
+    <div class="selection-bar">
+      <div class="node-pill" title="1st selected (Moves)">
+        <span class="dot move"></span>
+        <span id="first-name" class="node-name empty">1st layer</span>
       </div>
-      <div class="node-row">
-        <span class="badge anchor">2nd (Target)</span>
-        <span id="second-name" class="node-name empty">Select 2nd frame</span>
-      </div>
-      <button id="swap-btn" class="swap-btn" disabled title="Swap 1st and 2nd frames">
-        ⇅ Swap 1st &amp; 2nd
+      <button id="swap-btn" class="swap-btn" disabled title="Swap 1st & 2nd">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4.75 8.75H19.25M19.25 8.75L15.75 5.25M19.25 8.75L15.75 12.25M19.25 15.25H4.75M4.75 15.25L8.25 11.75M4.75 15.25L8.25 18.75" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
       </button>
+      <div class="node-pill" title="2nd selected (Target)">
+        <span class="dot anchor"></span>
+        <span id="second-name" class="node-name empty">2nd layer</span>
+      </div>
     </div>
 
-    <div class="section-title">Gap Between Selected</div>
+    <!-- Row 2: Alignment Toolbar (Central Icons 24x24, 1.5px stroke, 2px radius, round join) -->
+    <div class="figma-align-row">
+      <div class="figma-segmented">
+        <button class="align-btn" data-dir="left" disabled title="Align left">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3.75 3.75V20.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            <rect x="7.75" y="5.75" width="12.5" height="4.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            <rect x="7.75" y="13.75" width="8.5" height="4.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <button class="align-btn" data-dir="center-h" disabled title="Align horizontal centers">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2.75V5.75M12 10.25V13.75M12 18.25V21.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            <rect x="4.75" y="5.75" width="14.5" height="4.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            <rect x="7.75" y="13.75" width="8.5" height="4.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <button class="align-btn" data-dir="right" disabled title="Align right">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20.25 3.75V20.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            <rect x="3.75" y="5.75" width="12.5" height="4.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            <rect x="7.75" y="13.75" width="8.5" height="4.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="figma-segmented">
+        <button class="align-btn" data-dir="top" disabled title="Align top">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3.75 3.75H20.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            <rect x="5.75" y="7.75" width="4.5" height="12.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            <rect x="13.75" y="7.75" width="4.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <button class="align-btn" data-dir="center-v" disabled title="Align vertical centers">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2.75 12H5.75M10.25 12H13.75M18.25 12H21.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            <rect x="5.75" y="4.75" width="4.5" height="14.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            <rect x="13.75" y="7.75" width="4.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <button class="align-btn" data-dir="bottom" disabled title="Align bottom">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3.75 20.25H20.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            <rect x="5.75" y="3.75" width="4.5" height="12.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            <rect x="13.75" y="7.75" width="4.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="figma-segmented single">
+        <button class="align-btn" data-dir="center" disabled title="Align center (Horizontal & Vertical)">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2.75V7.75M12 16.25V21.25M2.75 12H7.75M16.25 12H21.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            <rect x="7.75" y="7.75" width="8.5" height="8.5" rx="2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Row 3: Gap Control -->
     <div class="gap-bar">
-      <div class="gap-input-wrap">
-        <span class="gap-label">Gap</span>
+      <div class="gap-input-wrap" title="Gap in pixels">
+        <svg class="gap-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4.75 4.75V19.25M19.25 4.75V19.25M8.75 12H15.25" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
         <input id="gap-input" class="gap-input" type="text" inputmode="numeric" value="0" spellcheck="false" autocomplete="off" />
         <span class="gap-unit">px</span>
       </div>
-      <button class="gap-btn" data-axis="h" disabled title="Apply Horizontal Gap between 1st & 2nd">
-        <svg viewBox="0 0 16 16">
-          <rect x="1.5" y="3" width="3" height="10" rx="0.8" style="opacity:0.45" />
-          <rect x="11.5" y="3" width="3" height="10" rx="0.8" />
-          <rect x="6" y="7.25" width="4" height="1.5" rx="0.75" />
-        </svg>
-        H Gap
-      </button>
-      <button class="gap-btn" data-axis="v" disabled title="Apply Vertical Gap between 1st & 2nd">
-        <svg viewBox="0 0 16 16">
-          <rect x="3" y="1.5" width="10" height="3" rx="0.8" style="opacity:0.45" />
-          <rect x="3" y="11.5" width="10" height="3" rx="0.8" />
-          <rect x="7.25" y="6" width="1.5" height="4" rx="0.75" />
-        </svg>
-        V Gap
-      </button>
-    </div>
-
-    <div class="section-title">Align 1st to 2nd</div>
-
-    <div class="grid">
-      <button class="align-btn" data-dir="left" disabled>
-        <svg viewBox="0 0 20 20">
-          <rect x="2" y="2" width="2" height="16" rx="1" />
-          <rect x="6" y="4" width="12" height="4.5" rx="1.2" class="bar-secondary" />
-          <rect x="6" y="11.5" width="8" height="4.5" rx="1.2" />
-        </svg>
-        Left
-      </button>
-
-      <button class="align-btn" data-dir="center" disabled>
-        <svg viewBox="0 0 20 20">
-          <rect x="9.25" y="2" width="1.5" height="16" rx="0.75" class="bar-secondary" />
-          <rect x="2" y="9.25" width="16" height="1.5" rx="0.75" class="bar-secondary" />
-          <rect x="6" y="6" width="8" height="8" rx="2" />
-        </svg>
-        Center
-      </button>
-
-      <button class="align-btn" data-dir="right" disabled>
-        <svg viewBox="0 0 20 20">
-          <rect x="16" y="2" width="2" height="16" rx="1" />
-          <rect x="2" y="4" width="12" height="4.5" rx="1.2" class="bar-secondary" />
-          <rect x="6" y="11.5" width="8" height="4.5" rx="1.2" />
-        </svg>
-        Right
-      </button>
-
-      <button class="align-btn" data-dir="top" disabled>
-        <svg viewBox="0 0 20 20">
-          <rect x="2" y="2" width="16" height="2" rx="1" />
-          <rect x="4" y="6" width="4.5" height="12" rx="1.2" class="bar-secondary" />
-          <rect x="11.5" y="6" width="4.5" height="8" rx="1.2" />
-        </svg>
-        Top
-      </button>
-
-      <button class="align-btn" data-dir="bottom" disabled>
-        <svg viewBox="0 0 20 20">
-          <rect x="2" y="16" width="16" height="2" rx="1" />
-          <rect x="4" y="2" width="4.5" height="12" rx="1.2" class="bar-secondary" />
-          <rect x="11.5" y="6" width="4.5" height="8" rx="1.2" />
-        </svg>
-        Bottom
-      </button>
-
-      <button class="align-btn" data-dir="center-h" disabled title="Horizontal Center">
-        <svg viewBox="0 0 20 20">
-          <rect x="9" y="2" width="2" height="16" rx="1" />
-          <rect x="3" y="4.5" width="14" height="4.5" rx="1.2" class="bar-secondary" />
-          <rect x="5.5" y="11" width="9" height="4.5" rx="1.2" />
-        </svg>
-        Center H
-      </button>
-    </div>
-
-    <div class="grid-2">
-      <button class="align-btn" data-dir="center-v" disabled title="Vertical Center" style="grid-column: span 2; flex-direction: row; padding: 8px;">
-        <svg viewBox="0 0 20 20">
-          <rect x="2" y="9" width="16" height="2" rx="1" />
-          <rect x="4.5" y="3" width="4.5" height="14" rx="1.2" class="bar-secondary" />
-          <rect x="11" y="5.5" width="4.5" height="9" rx="1.2" />
-        </svg>
-        Center Vertically (Center V)
-      </button>
+      <div class="gap-segmented">
+        <button class="gap-btn" data-axis="h" disabled title="Apply Horizontal Gap">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3.75 4.75V19.25M20.25 4.75V19.25M7.75 12H16.25M7.75 12L10.25 9.5M7.75 12L10.25 14.5M16.25 12L13.75 9.5M16.25 12L13.75 14.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          H
+        </button>
+        <button class="gap-btn" data-axis="v" disabled title="Apply Vertical Gap">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4.75 3.75H19.25M4.75 20.25H19.25M12 7.75V16.25M12 7.75L9.5 10.25M12 7.75L14.5 10.25M12 16.25L9.5 13.75M12 16.25L14.5 13.75" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          V
+        </button>
+      </div>
     </div>
   </div>
 
@@ -393,8 +394,22 @@
     const secondNameEl = document.getElementById("second-name");
     const swapBtn = document.getElementById("swap-btn");
     const gapInput = document.getElementById("gap-input");
+    const gapIcon = document.querySelector(".gap-icon");
+    const gapInputWrap = document.querySelector(".gap-input-wrap");
     const gapBtns = document.querySelectorAll(".gap-btn");
     const alignBtns = document.querySelectorAll(".align-btn");
+    let hasValidPair = false;
+
+    function cleanNumericString(raw) {
+      let s = raw.replace(/[^0-9.-]/g, "");
+      const isNeg = s.startsWith("-");
+      s = s.replace(/-/g, "");
+      const parts = s.split(".");
+      if (parts.length > 2) {
+        s = parts[0] + "." + parts.slice(1).join("");
+      }
+      return (isNeg ? "-" : "") + s;
+    }
 
     function getGapValue() {
       const val = parseFloat(gapInput.value);
@@ -410,8 +425,9 @@
     alignBtns.forEach((btn) => {
       btn.addEventListener("click", () => {
         const direction = btn.getAttribute("data-dir");
+        normalizeGapInput();
         parent.postMessage(
-          { pluginMessage: { type: "align", direction, gap: normalizeGapInput() } },
+          { pluginMessage: { type: "align", direction } },
           "*"
         );
       });
@@ -427,12 +443,18 @@
       });
     });
 
+    // Select all on first focus only, so later clicks can still place the caret
+    let justFocused = false;
     gapInput.addEventListener("focus", () => {
+      justFocused = true;
       setTimeout(() => gapInput.select(), 0);
     });
 
     gapInput.addEventListener("mouseup", (e) => {
-      e.preventDefault();
+      if (justFocused) {
+        e.preventDefault();
+        justFocused = false;
+      }
     });
 
     gapInput.addEventListener("blur", () => {
@@ -440,16 +462,50 @@
     });
 
     gapInput.addEventListener("input", () => {
-      const cleaned = gapInput.value.replace(/[^0-9.-]/g, "");
+      const cleaned = cleanNumericString(gapInput.value);
       if (gapInput.value !== cleaned) {
         gapInput.value = cleaned;
       }
     });
 
-    document.querySelector(".gap-input-wrap").addEventListener("click", (e) => {
+    gapInputWrap.addEventListener("click", (e) => {
       if (e.target !== gapInput) {
         gapInput.focus();
         gapInput.select();
+      }
+    });
+
+    // Figma-style drag scrubbing on the gap icon
+    let scrubStartX = 0;
+    let scrubStartVal = 0;
+    let isScrubbing = false;
+
+    gapIcon.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      isScrubbing = true;
+      scrubStartX = e.clientX;
+      scrubStartVal = getGapValue();
+      document.body.style.cursor = "ew-resize";
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (!isScrubbing) return;
+      const step = e.shiftKey ? 10 : 1;
+      const dx = Math.round((e.clientX - scrubStartX) / 2);
+      const nextVal = scrubStartVal + dx * step;
+      gapInput.value = String(nextVal);
+      if (hasValidPair) {
+        parent.postMessage(
+          { pluginMessage: { type: "apply-gap", axis: "auto", gap: nextVal } },
+          "*"
+        );
+      }
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (isScrubbing) {
+        isScrubbing = false;
+        document.body.style.cursor = "";
       }
     });
 
@@ -458,8 +514,15 @@
         e.preventDefault();
         const step = e.shiftKey ? 10 : 1;
         const delta = e.key === "ArrowUp" ? step : -step;
-        gapInput.value = String(getGapValue() + delta);
+        const nextVal = getGapValue() + delta;
+        gapInput.value = String(nextVal);
         gapInput.select();
+        if (hasValidPair) {
+          parent.postMessage(
+            { pluginMessage: { type: "apply-gap", axis: "auto", gap: nextVal } },
+            "*"
+          );
+        }
         return;
       }
       if (e.key === "Enter") {
@@ -481,27 +544,43 @@
 
       if (msg.first) {
         firstNameEl.textContent = msg.first.name;
+        firstNameEl.parentElement.title = `1st (Moves): ${msg.first.name}`;
         firstNameEl.classList.remove("empty");
       } else {
-        firstNameEl.textContent = "Select 1st frame";
+        firstNameEl.textContent = "1st layer";
+        firstNameEl.parentElement.title = "1st selected (Moves)";
         firstNameEl.classList.add("empty");
       }
 
       if (msg.second) {
         secondNameEl.textContent = msg.second.name;
+        secondNameEl.parentElement.title = `2nd (Target): ${msg.second.name}`;
         secondNameEl.classList.remove("empty");
       } else {
-        secondNameEl.textContent = "Select 2nd frame";
+        secondNameEl.textContent = "2nd layer";
+        secondNameEl.parentElement.title = "2nd selected (Target)";
         secondNameEl.classList.add("empty");
       }
 
-      const ready = Boolean(msg.first && msg.second);
-      swapBtn.disabled = !ready;
+      if (msg.gapInfo) {
+        const prefix = msg.gapInfo.inside ? "Inner inset" : "Current gap";
+        gapInputWrap.title = `${prefix} — H: ${msg.gapInfo.h}px, V: ${msg.gapInfo.v}px (Drag icon to scrub)`;
+      } else {
+        gapInputWrap.title = "Gap in pixels (Drag icon to scrub)";
+      }
+
+      hasValidPair = Boolean(msg.first && msg.second);
+      swapBtn.disabled = !hasValidPair || msg.canSwap === false;
+      swapBtn.title =
+        hasValidPair && msg.canSwap === false
+          ? "2nd layer cannot be moved (locked, in Auto Layout, or parent container)"
+          : "Swap 1st & 2nd";
+
       gapBtns.forEach((btn) => {
-        btn.disabled = !ready;
+        btn.disabled = !hasValidPair;
       });
       alignBtns.forEach((btn) => {
-        btn.disabled = !ready;
+        btn.disabled = !hasValidPair;
       });
     };
 
