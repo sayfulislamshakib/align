@@ -3,65 +3,123 @@ figma.showUI(__html__, { width: 240, height: 112, themeColors: true });
 // Track selection order because Figma's selection array does not always preserve click order.
 let orderedSelectionIds = [];
 
+// Safely verify that a node proxy (especially an instance sublayer or table cell) still exists
+function isValidNode(node) {
+  if (!node) return false;
+  try {
+    if (node.removed) return false;
+    // Accessing .name and .parent triggers Figma's internal existence check for instance sublayers
+    void node.name;
+    void node.parent;
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+function getValidSelection() {
+  try {
+    const raw = figma.currentPage.selection;
+    const valid = [];
+    for (let i = 0; i < raw.length; i++) {
+      if (isValidNode(raw[i])) {
+        valid.push(raw[i]);
+      }
+    }
+    return valid;
+  } catch (err) {
+    return [];
+  }
+}
+
 function isAncestor(ancestor, node) {
-  let p = node.parent;
-  while (p) {
-    if (p.id === ancestor.id) return true;
-    p = p.parent;
+  if (!isValidNode(ancestor) || !isValidNode(node)) return false;
+  try {
+    let p = node.parent;
+    while (p) {
+      if (p.id === ancestor.id) return true;
+      p = p.parent;
+    }
+  } catch (err) {
+    return false;
   }
   return false;
 }
 
 function isLockedOrHasLockedAncestor(node) {
-  let curr = node;
-  while (curr && curr.type !== "PAGE" && curr.type !== "DOCUMENT") {
-    if ("locked" in curr && curr.locked) return true;
-    curr = curr.parent;
+  try {
+    let curr = node;
+    while (curr && curr.type !== "PAGE" && curr.type !== "DOCUMENT") {
+      if ("locked" in curr && curr.locked) return true;
+      curr = curr.parent;
+    }
+  } catch (err) {
+    return false;
   }
   return false;
 }
 
-function isInsideInstance(node) {
-  let p = node.parent;
-  while (p && p.type !== "PAGE" && p.type !== "DOCUMENT") {
-    if (p.type === "INSTANCE") return true;
-    p = p.parent;
+function isReadOnlyInstanceSublayer(node) {
+  try {
+    // Layers placed inside a Figma Component Slot have standard IDs (not starting with "I")
+    if (!node || typeof node.id !== "string" || !node.id.startsWith("I")) {
+      return false;
+    }
+    let p = node.parent;
+    while (p && p.type !== "PAGE" && p.type !== "DOCUMENT") {
+      if (p.type === "SLOT") return false;
+      if (p.type === "INSTANCE") return true;
+      p = p.parent;
+    }
+  } catch (err) {
+    return false;
   }
   return false;
 }
 
 function isInAutoLayoutFlow(node) {
-  return Boolean(
-    node.parent &&
-    "layoutMode" in node.parent &&
-    node.parent.layoutMode !== "NONE" &&
-    (!("layoutPositioning" in node) || node.layoutPositioning !== "ABSOLUTE")
-  );
+  try {
+    return Boolean(
+      node.parent &&
+      "layoutMode" in node.parent &&
+      node.parent.layoutMode !== "NONE" &&
+      (!("layoutPositioning" in node) || node.layoutPositioning !== "ABSOLUTE")
+    );
+  } catch (err) {
+    return false;
+  }
 }
 
-function getNonMovableReason(node) {
-  if (!node || !("x" in node) || !("y" in node) || !("width" in node)) {
-    return "does not support positioning";
+function getNonMovableReason(node, checkInstanceSublayer = true) {
+  if (!isValidNode(node)) {
+    return "no longer exists";
   }
-  if (isLockedOrHasLockedAncestor(node)) {
-    return "is locked";
+  try {
+    if (!("x" in node) || !("y" in node) || !("width" in node)) {
+      return "does not support positioning";
+    }
+    if (isLockedOrHasLockedAncestor(node)) {
+      return "is locked";
+    }
+    if (isInAutoLayoutFlow(node)) {
+      return "is inside an Auto Layout frame";
+    }
+    if (checkInstanceSublayer && isReadOnlyInstanceSublayer(node)) {
+      return "is a fixed layer inside a component instance";
+    }
+    return null;
+  } catch (err) {
+    return "cannot be modified";
   }
-  if (isInAutoLayoutFlow(node)) {
-    return "is inside an Auto Layout frame";
-  }
-  if (isInsideInstance(node)) {
-    return "is inside a component instance";
-  }
-  return null;
 }
 
 function isMovableNode(node) {
   return getNonMovableReason(node) === null;
 }
 
-function ensureMovableFirst() {
+function ensureMovableFirst(validSelection) {
   if (orderedSelectionIds.length < 2) return;
-  const map = new Map(figma.currentPage.selection.map((n) => [n.id, n]));
+  const map = new Map(validSelection.map((n) => [n.id, n]));
   const first = map.get(orderedSelectionIds[0]);
   const second = map.get(orderedSelectionIds[1]);
   if (!first || !second) return;
@@ -77,7 +135,7 @@ function ensureMovableFirst() {
 }
 
 function syncSelectionOrder(notifyUI = true) {
-  const currentSelection = figma.currentPage.selection;
+  const currentSelection = getValidSelection();
   const currentIds = new Set(currentSelection.map((n) => n.id));
 
   // Keep existing IDs that are still selected, preserving their selection order
@@ -90,7 +148,7 @@ function syncSelectionOrder(notifyUI = true) {
     }
   }
 
-  ensureMovableFirst();
+  ensureMovableFirst(currentSelection);
 
   if (notifyUI) {
     sendSelectionState();
@@ -99,26 +157,31 @@ function syncSelectionOrder(notifyUI = true) {
 
 function getOrderedNodes() {
   syncSelectionOrder(false);
-  const map = new Map(figma.currentPage.selection.map((n) => [n.id, n]));
+  const currentSelection = getValidSelection();
+  const map = new Map(currentSelection.map((n) => [n.id, n]));
   return orderedSelectionIds.map((id) => map.get(id)).filter(Boolean);
 }
 
 function getAbsoluteBounds(node) {
-  if (node.absoluteBoundingBox) {
+  try {
+    if (node.absoluteBoundingBox) {
+      return {
+        x: node.absoluteBoundingBox.x,
+        y: node.absoluteBoundingBox.y,
+        width: node.absoluteBoundingBox.width,
+        height: node.absoluteBoundingBox.height,
+      };
+    }
+    const t = node.absoluteTransform;
     return {
-      x: node.absoluteBoundingBox.x,
-      y: node.absoluteBoundingBox.y,
-      width: node.absoluteBoundingBox.width,
-      height: node.absoluteBoundingBox.height,
+      x: t[0][2],
+      y: t[1][2],
+      width: node.width,
+      height: node.height,
     };
+  } catch (err) {
+    return null;
   }
-  const t = node.absoluteTransform;
-  return {
-    x: t[0][2],
-    y: t[1][2],
-    width: node.width,
-    height: node.height,
-  };
 }
 
 function cleanNum(v) {
@@ -126,38 +189,56 @@ function cleanNum(v) {
 }
 
 function computeCurrentGapInfo(first, second) {
-  if (!first || !second || !("width" in first) || !("width" in second)) return null;
-  const r1 = getAbsoluteBounds(first);
-  const r2 = getAbsoluteBounds(second);
+  if (!isValidNode(first) || !isValidNode(second)) return null;
+  try {
+    if (!("width" in first) || !("width" in second)) return null;
+    const r1 = getAbsoluteBounds(first);
+    const r2 = getAbsoluteBounds(second);
+    if (!r1 || !r2) return null;
 
-  if (isAncestor(second, first)) {
-    const leftGap = cleanNum(r1.x - r2.x);
-    const rightGap = cleanNum((r2.x + r2.width) - (r1.x + r1.width));
-    const topGap = cleanNum(r1.y - r2.y);
-    const bottomGap = cleanNum((r2.y + r2.height) - (r1.y + r1.height));
+    if (isAncestor(second, first)) {
+      const leftGap = cleanNum(r1.x - r2.x);
+      const rightGap = cleanNum((r2.x + r2.width) - (r1.x + r1.width));
+      const topGap = cleanNum(r1.y - r2.y);
+      const bottomGap = cleanNum((r2.y + r2.height) - (r1.y + r1.height));
+      return {
+        h: Math.min(leftGap, rightGap),
+        v: Math.min(topGap, bottomGap),
+        inside: true,
+      };
+    }
+
+    const sepX = Math.max(r1.x - (r2.x + r2.width), r2.x - (r1.x + r1.width));
+    const sepY = Math.max(r1.y - (r2.y + r2.height), r2.y - (r1.y + r1.height));
     return {
-      h: Math.min(leftGap, rightGap),
-      v: Math.min(topGap, bottomGap),
-      inside: true,
+      h: cleanNum(Math.max(0, sepX)),
+      v: cleanNum(Math.max(0, sepY)),
+      inside: false,
     };
+  } catch (err) {
+    return null;
   }
+}
 
-  const sepX = Math.max(r1.x - (r2.x + r2.width), r2.x - (r1.x + r1.width));
-  const sepY = Math.max(r1.y - (r2.y + r2.height), r2.y - (r1.y + r1.height));
-  return {
-    h: cleanNum(Math.max(0, sepX)),
-    v: cleanNum(Math.max(0, sepY)),
-    inside: false,
-  };
+function safeNodeSummary(node) {
+  if (!isValidNode(node)) return null;
+  try {
+    return { id: node.id, name: node.name, type: node.type };
+  } catch (err) {
+    return null;
+  }
 }
 
 function sendSelectionState() {
   const nodes = getOrderedNodes();
   const first = nodes[0] || null;
   const second = nodes[1] || null;
+  const firstSummary = safeNodeSummary(first);
+  const secondSummary = safeNodeSummary(second);
+
   const canSwap = Boolean(
-    first &&
-    second &&
+    firstSummary &&
+    secondSummary &&
     isMovableNode(second) &&
     !isAncestor(second, first)
   );
@@ -165,10 +246,10 @@ function sendSelectionState() {
   figma.ui.postMessage({
     type: "selection-updated",
     count: nodes.length,
-    first: first ? { id: first.id, name: first.name, type: first.type } : null,
-    second: second ? { id: second.id, name: second.name, type: second.type } : null,
+    first: firstSummary,
+    second: secondSummary,
     canSwap,
-    gapInfo: computeCurrentGapInfo(first, second),
+    gapInfo: firstSummary && secondSummary ? computeCurrentGapInfo(first, second) : null,
   });
 }
 
@@ -186,15 +267,21 @@ figma.on("currentpagechange", () => {
 
 // Find the nearest ancestor that defines a local coordinate system for node.x / node.y
 function getCoordinateParent(node) {
-  let p = node.parent;
-  while (p && (p.type === "GROUP" || p.type === "BOOLEAN_OPERATION")) {
-    p = p.parent;
+  try {
+    let p = node.parent;
+    while (p && (p.type === "GROUP" || p.type === "BOOLEAN_OPERATION")) {
+      p = p.parent;
+    }
+    return p;
+  } catch (err) {
+    return null;
   }
-  return p;
 }
 
 function setAbsolutePosition(node, targetAbsX, targetAbsY) {
   const currentAbs = getAbsoluteBounds(node);
+  if (!currentAbs) return false;
+
   const deltaAbsX = targetAbsX - currentAbs.x;
   const deltaAbsY = targetAbsY - currentAbs.y;
 
@@ -245,12 +332,17 @@ function validateAndPrepareNodes() {
   const first = nodes[0];  // 1st selected: node to move
   const second = nodes[1]; // 2nd selected: reference/anchor node
 
+  if (!isValidNode(first) || !isValidNode(second)) {
+    syncSelectionOrder(true);
+    return null;
+  }
+
   if (isAncestor(first, second)) {
     figma.notify("1st layer contains the 2nd layer. Click \"Swap\" to move the inner layer.", { error: true });
     return null;
   }
 
-  const reason = getNonMovableReason(first);
+  const reason = getNonMovableReason(first, false);
   if (reason) {
     figma.notify(`Cannot move "${first.name}" because it ${reason}.`, { error: true });
     return null;
@@ -280,7 +372,8 @@ figma.ui.onmessage = (msg) => {
   if (msg.type === "swap-order") {
     syncSelectionOrder(false);
     if (orderedSelectionIds.length >= 2) {
-      const map = new Map(figma.currentPage.selection.map((n) => [n.id, n]));
+      const validSelection = getValidSelection();
+      const map = new Map(validSelection.map((n) => [n.id, n]));
       const first = map.get(orderedSelectionIds[0]);
       const second = map.get(orderedSelectionIds[1]);
       if (first && second) {
@@ -309,6 +402,7 @@ figma.ui.onmessage = (msg) => {
     const { first, second } = pair;
     const firstRect = getAbsoluteBounds(first);
     const secondRect = getAbsoluteBounds(second);
+    if (!firstRect || !secondRect) return;
 
     let newAbsX = firstRect.x;
     let newAbsY = firstRect.y;
@@ -358,6 +452,7 @@ figma.ui.onmessage = (msg) => {
 
     const firstRect = getAbsoluteBounds(first);
     const secondRect = getAbsoluteBounds(second);
+    if (!firstRect || !secondRect) return;
 
     const firstCenterX = firstRect.x + firstRect.width / 2;
     const firstCenterY = firstRect.y + firstRect.height / 2;
@@ -401,7 +496,6 @@ figma.ui.onmessage = (msg) => {
     let newAbsY = firstRect.y;
 
     if (childInsideTarget) {
-      // 1st is inside 2nd: apply gap as inner padding from the nearest edge of 2nd
       if (axis === "h") {
         if (firstCenterX <= secondCenterX) {
           newAbsX = secondRect.x + gap;
@@ -416,7 +510,6 @@ figma.ui.onmessage = (msg) => {
         }
       }
     } else {
-      // 1st and 2nd are separate layers: apply gap as outer spacing between them
       if (axis === "h") {
         if (firstCenterX < secondCenterX) {
           newAbsX = secondRect.x - firstRect.width - gap;
