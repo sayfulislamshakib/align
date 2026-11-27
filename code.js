@@ -161,6 +161,23 @@ function getAbsoluteBounds(node) {
   }
 }
 
+function getGroupBounds(nodes) {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const n of nodes) {
+    const r = getAbsoluteBounds(n);
+    if (!r) continue;
+    if (r.x < minX) minX = r.x;
+    if (r.y < minY) minY = r.y;
+    if (r.x + r.width > maxX) maxX = r.x + r.width;
+    if (r.y + r.height > maxY) maxY = r.y + r.height;
+  }
+  if (!isFinite(minX)) return null;
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
 function cleanNum(v) {
   return Math.round(v * 1000) / 1000;
 }
@@ -266,7 +283,12 @@ function sendSelectionState() {
 
   const first = nodes[0] || null;
   const second = nodes[1] || null;
-  const firstSummary = isValidNode(first) ? { id: first.id, name: first.name } : null;
+  const firstSummary = isValidNode(first)
+    ? {
+        id: first.id,
+        name: nodes.length > 2 ? `${nodes.length - 1} items` : first.name,
+      }
+    : null;
   const secondSummary = isValidNode(second) ? { id: second.id, name: second.name } : null;
   const canSwap = Boolean(
     firstSummary &&
@@ -321,11 +343,7 @@ function setAbsolutePosition(node, targetAbsX, targetAbsY) {
   return moved;
 }
 
-function alignNode(first, second, dir) {
-  const r1 = getAbsoluteBounds(first);
-  const r2 = getAbsoluteBounds(second);
-  if (!r1 || !r2) return false;
-
+function computeAlignedPosition(r1, r2, dir) {
   let x = r1.x;
   let y = r1.y;
 
@@ -341,19 +359,14 @@ function alignNode(first, second, dir) {
     y = r2.y + (r2.height - r1.height) / 2;
   }
 
-  return setAbsolutePosition(first, x, y);
+  return { x, y };
 }
 
-function applyGapNode(first, second, rawAxis, gap) {
-  const r1 = getAbsoluteBounds(first);
-  const r2 = getAbsoluteBounds(second);
-  if (!r1 || !r2) return false;
-
+function computeGapPosition(r1, r2, inside, rawAxis, gap) {
   const c1x = r1.x + r1.width / 2;
   const c1y = r1.y + r1.height / 2;
   const c2x = r2.x + r2.width / 2;
   const c2y = r2.y + r2.height / 2;
-  const inside = isAncestor(second, first);
 
   let axis = rawAxis;
   if (axis === "auto") {
@@ -386,30 +399,83 @@ function applyGapNode(first, second, rawAxis, gap) {
     else if (axis === "v") y = c1y < c2y ? r2.y - r1.height - gap : r2.y + r2.height + gap;
   }
 
-  return setAbsolutePosition(first, x, y);
+  return { x, y };
 }
 
-function executeAction(actionFn) {
+function moveNodesAsGroup(movingNodes, targetNode, inside, calcTargetPos) {
+  const groupRect = getGroupBounds(movingNodes);
+  const targetRect = getAbsoluteBounds(targetNode);
+  if (!groupRect || !targetRect) return false;
+
+  const targetPos = calcTargetPos(groupRect, targetRect, inside);
+  const deltaX = targetPos.x - groupRect.x;
+  const deltaY = targetPos.y - groupRect.y;
+
+  let anyMoved = false;
+  for (const node of movingNodes) {
+    const r = getAbsoluteBounds(node);
+    if (r && setAbsolutePosition(node, r.x + deltaX, r.y + deltaY)) {
+      anyMoved = true;
+    }
+  }
+  return anyMoved;
+}
+
+function executeAction(groupMode, calcTargetPos) {
   const nodes = getOrderedNodes();
   const parentPairs = getParentAlignmentPairs(nodes);
 
-  if (shouldUseParentMode(nodes, parentPairs)) {
+  // Parent Mode (or Alt/Option Group Mode when items are inside parent frames)
+  if ((shouldUseParentMode(nodes, parentPairs) || (groupMode && parentPairs && parentPairs.length >= 2)) && parentPairs) {
     let anyMoved = false;
     let blockedReason = null;
     let blockedName = "";
 
-    for (const { node, parentFrame } of parentPairs) {
-      const reason = getNonMovableReason(node, false);
-      if (reason) {
-        blockedReason = reason;
-        blockedName = node.name;
-        continue;
+    if (groupMode && parentPairs.length > 1) {
+      // Group movable nodes by their parentFrame so items in each parent frame move together as a group
+      const byParent = new Map();
+      for (const { node, parentFrame } of parentPairs) {
+        const reason = getNonMovableReason(node, false);
+        if (reason) {
+          blockedReason = reason;
+          blockedName = node.name;
+          continue;
+        }
+        if (!byParent.has(parentFrame.id)) {
+          byParent.set(parentFrame.id, { parentFrame, items: [] });
+        }
+        byParent.get(parentFrame.id).items.push(node);
       }
-      try {
-        if (actionFn(node, parentFrame)) anyMoved = true;
-      } catch (err) {
-        blockedReason = "cannot be moved";
-        blockedName = node.name;
+
+      for (const { parentFrame, items } of byParent.values()) {
+        try {
+          if (moveNodesAsGroup(items, parentFrame, true, calcTargetPos)) {
+            anyMoved = true;
+          }
+        } catch (err) {
+          blockedReason = "cannot be moved";
+          blockedName = items[0] ? items[0].name : "";
+        }
+      }
+    } else {
+      for (const { node, parentFrame } of parentPairs) {
+        const reason = getNonMovableReason(node, false);
+        if (reason) {
+          blockedReason = reason;
+          blockedName = node.name;
+          continue;
+        }
+        try {
+          const r1 = getAbsoluteBounds(node);
+          const r2 = getAbsoluteBounds(parentFrame);
+          if (r1 && r2) {
+            const pos = calcTargetPos(r1, r2, true);
+            if (setAbsolutePosition(node, pos.x, pos.y)) anyMoved = true;
+          }
+        } catch (err) {
+          blockedReason = "cannot be moved";
+          blockedName = node.name;
+        }
       }
     }
 
@@ -426,30 +492,63 @@ function executeAction(actionFn) {
     return;
   }
 
-  const [first, second] = nodes;
-  if (!isValidNode(first) || !isValidNode(second)) {
-    syncSelectionOrder(true);
-    return;
-  }
-  if (isAncestor(first, second)) {
-    figma.notify("1st layer contains the 2nd layer. Click \"Swap\" to move the inner layer.", { error: true });
-    return;
-  }
-  const reason = getNonMovableReason(first, false);
-  if (reason) {
-    figma.notify(`Cannot move "${first.name}" because it ${reason}.`, { error: true });
-    return;
-  }
-  if (!("width" in second) || !("height" in second)) {
+  const target = nodes[1];
+  const movingCandidates = nodes.filter((n, idx) => idx !== 1);
+
+  if (!isValidNode(target) || !("width" in target) || !("height" in target)) {
     figma.notify("Selected target layer does not support alignment.", { error: true });
     return;
   }
 
+  const movableItems = [];
+  let blockedReason = null;
+  let blockedName = "";
+
+  for (const item of movingCandidates) {
+    if (!isValidNode(item)) continue;
+    if (isAncestor(item, target)) {
+      figma.notify("Moving layer contains the target layer. Click \"Swap\" to move the inner layer.", { error: true });
+      return;
+    }
+    const reason = getNonMovableReason(item, false);
+    if (reason) {
+      blockedReason = reason;
+      blockedName = item.name;
+      continue;
+    }
+    movableItems.push(item);
+  }
+
+  if (!movableItems.length) {
+    if (blockedReason) {
+      figma.notify(`Cannot move "${blockedName}" because it ${blockedReason}.`, { error: true });
+    }
+    return;
+  }
+
   try {
-    if (actionFn(first, second)) figma.commitUndo();
+    let anyMoved = false;
+    const inside = isAncestor(target, movableItems[0]);
+
+    if (groupMode && movableItems.length > 1) {
+      anyMoved = moveNodesAsGroup(movableItems, target, inside, calcTargetPos);
+    } else {
+      const r2 = getAbsoluteBounds(target);
+      if (r2) {
+        for (const item of movableItems) {
+          const r1 = getAbsoluteBounds(item);
+          if (r1) {
+            const pos = calcTargetPos(r1, r2, isAncestor(target, item));
+            if (setAbsolutePosition(item, pos.x, pos.y)) anyMoved = true;
+          }
+        }
+      }
+    }
+
+    if (anyMoved) figma.commitUndo();
     sendSelectionState();
   } catch (err) {
-    figma.notify(`Cannot move "${first.name}".`, { error: true });
+    figma.notify(`Cannot move "${movableItems[0].name}".`, { error: true });
   }
 }
 
@@ -520,9 +619,9 @@ figma.ui.onmessage = (msg) => {
   }
 
   if (msg.type === "align") {
-    executeAction((first, second) => alignNode(first, second, msg.direction));
+    executeAction(Boolean(msg.group), (r1, r2) => computeAlignedPosition(r1, r2, msg.direction));
   } else if (msg.type === "apply-gap") {
     const gap = typeof msg.gap === "number" && !isNaN(msg.gap) ? msg.gap : 0;
-    executeAction((first, second) => applyGapNode(first, second, msg.axis, gap));
+    executeAction(Boolean(msg.group), (r1, r2, inside) => computeGapPosition(r1, r2, inside, msg.axis, gap));
   }
 };

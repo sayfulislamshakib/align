@@ -399,8 +399,39 @@
     const gapBtns = document.querySelectorAll(".gap-btn");
     const matrixCells = document.querySelectorAll(".matrix-cell");
     let hasValidPair = false;
+    let isParentMode = false;
+    let altPressed = false;
 
     const post = (pluginMessage) => parent.postMessage({ pluginMessage }, "*");
+
+    function updateGroupTagUI() {
+      if (altPressed) {
+        firstTagEl.textContent = "Group";
+      } else {
+        firstTagEl.textContent = isParentMode ? "Item" : "1st";
+      }
+    }
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Alt" && !altPressed) {
+        altPressed = true;
+        updateGroupTagUI();
+      }
+    });
+
+    window.addEventListener("keyup", (e) => {
+      if (e.key === "Alt" && altPressed) {
+        altPressed = false;
+        updateGroupTagUI();
+      }
+    });
+
+    window.addEventListener("blur", () => {
+      if (altPressed) {
+        altPressed = false;
+        updateGroupTagUI();
+      }
+    });
 
     function setActiveMatrixSpot(dir) {
       matrixCells.forEach((cell) => {
@@ -429,17 +460,22 @@
     }
 
     matrixCells.forEach((cell) => {
-      cell.addEventListener("click", () => {
+      cell.addEventListener("click", (e) => {
         const direction = cell.getAttribute("data-dir");
         setActiveMatrixSpot(direction);
         normalizeGapInput();
-        post({ type: "align", direction });
+        post({ type: "align", direction, group: Boolean(e.altKey || altPressed) });
       });
     });
 
     gapBtns.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        post({ type: "apply-gap", axis: btn.getAttribute("data-axis"), gap: normalizeGapInput() });
+      btn.addEventListener("click", (e) => {
+        post({
+          type: "apply-gap",
+          axis: btn.getAttribute("data-axis"),
+          gap: normalizeGapInput(),
+          group: Boolean(e.altKey || altPressed),
+        });
       });
     });
 
@@ -487,7 +523,7 @@
       const step = e.shiftKey ? 10 : 1;
       const nextVal = scrubStartVal + Math.round((e.clientX - scrubStartX) / 2) * step;
       gapInput.value = String(nextVal);
-      if (hasValidPair) post({ type: "apply-gap", axis: "auto", gap: nextVal });
+      if (hasValidPair) post({ type: "apply-gap", axis: "auto", gap: nextVal, group: Boolean(e.altKey || altPressed) });
     });
 
     window.addEventListener("mouseup", () => {
@@ -504,9 +540,9 @@
         const nextVal = getGapValue() + (e.key === "ArrowUp" ? step : -step);
         gapInput.value = String(nextVal);
         gapInput.select();
-        if (hasValidPair) post({ type: "apply-gap", axis: "auto", gap: nextVal });
+        if (hasValidPair) post({ type: "apply-gap", axis: "auto", gap: nextVal, group: Boolean(e.altKey || altPressed) });
       } else if (e.key === "Enter") {
-        post({ type: "apply-gap", axis: "auto", gap: normalizeGapInput() });
+        post({ type: "apply-gap", axis: "auto", gap: normalizeGapInput(), group: Boolean(e.altKey || altPressed) });
         gapInput.select();
       }
     });
@@ -517,8 +553,8 @@
       const msg = event.data && event.data.pluginMessage;
       if (!msg || msg.type !== "selection-updated") return;
 
-      const isParentMode = msg.mode === "parent";
-      firstTagEl.textContent = isParentMode ? "Item" : "1st";
+      isParentMode = msg.mode === "parent";
+      updateGroupTagUI();
       secondTagEl.textContent = isParentMode ? "Frame" : "2nd";
 
       if (msg.first) {
