@@ -544,7 +544,10 @@
 
       if (msg.first) {
         firstNameEl.textContent = msg.first.name;
-        firstNameEl.parentElement.title = `1st (Moves): ${msg.first.name}`;
+        firstNameEl.parentElement.title =
+          msg.mode === "parent"
+            ? `Moves: ${msg.first.name}`
+            : `1st (Moves): ${msg.first.name}`;
         firstNameEl.classList.remove("empty");
       } else {
         firstNameEl.textContent = "1st layer";
@@ -554,7 +557,10 @@
 
       if (msg.second) {
         secondNameEl.textContent = msg.second.name;
-        secondNameEl.parentElement.title = `2nd (Target): ${msg.second.name}`;
+        secondNameEl.parentElement.title =
+          msg.mode === "parent"
+            ? `Target: ${msg.second.name}`
+            : `2nd (Target): ${msg.second.name}`;
         secondNameEl.classList.remove("empty");
       } else {
         secondNameEl.textContent = "2nd layer";
@@ -573,8 +579,10 @@
       swapBtn.disabled = !hasValidPair || msg.canSwap === false;
       swapBtn.title =
         hasValidPair && msg.canSwap === false
-          ? "2nd layer cannot be moved (locked, in Auto Layout, or parent container)"
-          : "Swap 1st & 2nd";
+          ? "Target cannot be moved"
+          : msg.mode === "parent"
+            ? "Switch to 1st ⇄ 2nd alignment"
+            : "Swap 1st & 2nd (or cycle Parent alignment)";
 
       gapBtns.forEach((btn) => {
         btn.disabled = !hasValidPair;
