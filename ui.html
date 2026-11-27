@@ -37,48 +37,53 @@
       gap: 6px;
     }
 
-    /* Row 1: Compact 1st <-> 2nd Selection Bar */
+    /* Row 1: Vertical Move -> Target Selection Bar */
     .selection-bar {
       display: flex;
-      align-items: center;
+      flex-direction: column;
       gap: 4px;
-      background: #383838;
-      border-radius: 6px;
-      padding: 3px 4px;
-      height: 28px;
+      position: relative;
     }
 
     .node-pill {
-      flex: 1;
-      min-width: 0;
+      width: 100%;
+      height: 24px;
       display: flex;
       align-items: center;
-      gap: 4px;
-      padding: 0 5px;
+      gap: 6px;
+      padding: 0 28px 0 6px;
+      border-radius: 5px;
+      background: #383838;
     }
 
-    .dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
+    .pill-tag {
+      font-size: 9px;
+      font-weight: 600;
+      padding: 1px 4px;
+      border-radius: 3px;
+      letter-spacing: 0.02em;
       flex-shrink: 0;
+      text-transform: uppercase;
+      min-width: 28px;
+      text-align: center;
     }
 
-    .dot.move {
-      background: #0d99ff;
+    .pill-tag.move {
+      background: rgba(13, 153, 255, 0.22);
+      color: #7cc4fa;
     }
 
-    .dot.anchor {
-      background: #888888;
+    .pill-tag.anchor {
+      background: #444444;
+      color: #cccccc;
     }
 
     .node-name {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      font-size: 11px;
       font-weight: 500;
-      color: #e5e5e5;
+      color: #f0f0f0;
     }
 
     .node-name.empty {
@@ -87,97 +92,105 @@
     }
 
     .swap-btn {
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
       width: 22px;
       height: 22px;
-      flex-shrink: 0;
       background: #2c2c2c;
-      border: none;
+      border: 1px solid #4a4a4a;
       border-radius: 4px;
-      color: #b3b3b3;
+      color: #cccccc;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 11px;
-      transition: background 0.1s, color 0.1s;
+      transition: all 0.12s ease;
+      z-index: 2;
     }
 
     .swap-btn:hover:not(:disabled) {
       background: #4a4a4a;
+      border-color: #5a5a5a;
+      color: #ffffff;
+    }
+
+    .swap-btn:active:not(:disabled) {
+      background: #0d99ff;
+      border-color: #0d99ff;
       color: #ffffff;
     }
 
     .swap-btn:disabled {
-      opacity: 0.35;
+      opacity: 0.3;
       cursor: not-allowed;
-    }
-
-    /* Row 2: Figma Alignment Toolbar */
-    .figma-align-row {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .figma-segmented {
-      display: flex;
-      align-items: center;
-      background: #383838;
-      border-radius: 6px;
-      padding: 2px;
-      gap: 1px;
-      flex: 1;
-    }
-
-    .figma-segmented.single {
-      flex: 0 0 auto;
-    }
-
-    button.align-btn {
-      flex: 1;
-      height: 24px;
-      min-width: 26px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: transparent;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      color: #e5e5e5;
-      transition: background 0.1s ease, color 0.1s ease;
-    }
-
-    button.align-btn:hover:not(:disabled) {
-      background: #4a4a4a;
-      color: #ffffff;
-    }
-
-    button.align-btn:active:not(:disabled) {
-      background: #0d99ff;
-      color: #ffffff;
-    }
-
-    button.align-btn:disabled {
-      opacity: 0.35;
-      cursor: not-allowed;
-    }
-
-    button.align-btn svg {
-      width: 16px;
-      height: 16px;
-      fill: none;
-      display: block;
     }
 
     .swap-btn svg {
       width: 13px;
       height: 13px;
       fill: none;
+    }
+
+    /* Row 2: Figma 3x3 Alignment Matrix Box */
+    .figma-matrix-box {
+      background: #383838;
+      border-radius: 6px;
+      padding: 4px 10px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 18px);
+      align-items: center;
+      justify-items: center;
+    }
+
+    .matrix-cell {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .matrix-cell:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .matrix-dot {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: #8c8c8c;
+    }
+
+    .matrix-bars {
+      width: 14px;
+      height: 14px;
+      display: none;
+      fill: #7cc4fa;
+    }
+
+    .matrix-cell.active .matrix-dot,
+    .matrix-cell:hover:not(:disabled) .matrix-dot {
+      display: none;
+    }
+
+    .matrix-cell.active .matrix-bars,
+    .matrix-cell:hover:not(:disabled) .matrix-bars {
       display: block;
     }
 
-    /* Row 3: Compact Gap Row */
+    .matrix-cell:hover:not(:disabled):not(.active) .matrix-bars {
+      opacity: 0.75;
+    }
+
+    /* Row 3: Gap Control */
     .gap-bar {
       display: flex;
       align-items: center;
@@ -190,51 +203,57 @@
       background: #383838;
       border: 1px solid transparent;
       border-radius: 6px;
-      padding: 0 7px;
+      padding: 0 6px;
       height: 28px;
       flex: 1;
+      min-width: 0;
       transition: border-color 0.12s, background 0.12s;
     }
 
     .gap-input-wrap:hover {
-      border-color: #4a4a4a;
+      border-color: #4d4d4d;
     }
 
     .gap-input-wrap:focus-within {
-      background: #2c2c2c;
+      background: #242424;
       border-color: #0d99ff;
+    }
+
+    .gap-scrub-handle {
+      display: flex;
+      align-items: center;
+      color: #999999;
+      cursor: ew-resize;
+      margin-right: 4px;
+      flex-shrink: 0;
+    }
+
+    .gap-scrub-handle:hover {
+      color: #dcdcdc;
     }
 
     .gap-icon {
       width: 14px;
       height: 14px;
-      color: #888888;
       fill: none;
-      margin-right: 6px;
-      flex-shrink: 0;
-      cursor: ew-resize;
-    }
-
-    .gap-icon:hover {
-      color: #cccccc;
     }
 
     .gap-input {
       width: 100%;
+      min-width: 0;
       background: transparent;
       border: none;
       outline: none;
       color: #ffffff;
       font-size: 11px;
-      font-weight: 400;
-      -moz-appearance: textfield;
-      appearance: textfield;
+      font-weight: 500;
     }
 
     .gap-unit {
       font-size: 10px;
       color: #777777;
-      margin-left: 4px;
+      margin-left: 3px;
+      flex-shrink: 0;
     }
 
     .gap-segmented {
@@ -243,12 +262,13 @@
       background: #383838;
       border-radius: 6px;
       padding: 2px;
-      gap: 1px;
+      gap: 2px;
+      flex-shrink: 0;
     }
 
     .gap-btn {
       height: 24px;
-      padding: 0 8px;
+      padding: 0 6px;
       background: transparent;
       border: none;
       border-radius: 4px;
@@ -258,12 +278,12 @@
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 3px;
       transition: background 0.1s ease, color 0.1s ease;
     }
 
     .gap-btn:hover:not(:disabled) {
-      background: #4a4a4a;
+      background: #4d4d4d;
       color: #ffffff;
     }
 
@@ -273,7 +293,7 @@
     }
 
     .gap-btn:disabled {
-      opacity: 0.35;
+      opacity: 0.32;
       cursor: not-allowed;
     }
 
@@ -285,102 +305,78 @@
   </style>
 </head>
 <body>
+  <!-- Shared SVG definitions for the 3x3 matrix bars -->
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <g id="bars-top">
+        <rect x="3.2" y="2.5" width="2.4" height="9" rx="1.2" />
+        <rect x="7.8" y="2.5" width="2.4" height="13" rx="1.2" />
+        <rect x="12.4" y="2.5" width="2.4" height="6.5" rx="1.2" />
+      </g>
+      <g id="bars-mid">
+        <rect x="3.2" y="4.5" width="2.4" height="9" rx="1.2" />
+        <rect x="7.8" y="2.5" width="2.4" height="13" rx="1.2" />
+        <rect x="12.4" y="5.75" width="2.4" height="6.5" rx="1.2" />
+      </g>
+      <g id="bars-bot">
+        <rect x="3.2" y="6.5" width="2.4" height="9" rx="1.2" />
+        <rect x="7.8" y="2.5" width="2.4" height="13" rx="1.2" />
+        <rect x="12.4" y="9" width="2.4" height="6.5" rx="1.2" />
+      </g>
+    </defs>
+  </svg>
+
   <div id="app">
-    <!-- Row 1: 1st (Moves) ⇄ 2nd (Target) -->
+    <!-- Row 1: Vertical Selection Bar -->
     <div class="selection-bar">
-      <div class="node-pill" title="1st selected (Moves)">
-        <span class="dot move"></span>
-        <span id="first-name" class="node-name empty">1st layer</span>
+      <div class="node-pill" id="first-pill" title="1st selected (Moves)">
+        <span class="pill-tag move" id="first-tag">1st</span>
+        <span id="first-name" class="node-name empty">Select layer</span>
       </div>
       <button id="swap-btn" class="swap-btn" disabled title="Swap 1st & 2nd">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M4.75 8.75H19.25M19.25 8.75L15.75 5.25M19.25 8.75L15.75 12.25M19.25 15.25H4.75M4.75 15.25L8.25 11.75M4.75 15.25L8.25 18.75" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+        <svg viewBox="0 0 24 24">
+          <path d="M8.75 4.75V19.25M8.75 4.75L5.25 8.25M8.75 4.75L12.25 8.25M15.25 19.25V4.75M15.25 19.25L11.75 15.75M15.25 19.25L18.75 15.75" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
       </button>
-      <div class="node-pill" title="2nd selected (Target)">
-        <span class="dot anchor"></span>
-        <span id="second-name" class="node-name empty">2nd layer</span>
+      <div class="node-pill" id="second-pill" title="2nd selected (Target)">
+        <span class="pill-tag anchor" id="second-tag">2nd</span>
+        <span id="second-name" class="node-name empty">Target layer</span>
       </div>
     </div>
 
-    <!-- Row 2: Alignment Toolbar (Central Icons 24x24, 1.5px stroke, 2px radius, round join) -->
-    <div class="figma-align-row">
-      <div class="figma-segmented">
-        <button class="align-btn" data-dir="left" disabled title="Align left">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M3.75 3.75V20.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            <rect x="7.75" y="5.75" width="12.5" height="4.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            <rect x="7.75" y="13.75" width="8.5" height="4.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-        <button class="align-btn" data-dir="center-h" disabled title="Align horizontal centers">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2.75V5.75M12 10.25V13.75M12 18.25V21.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            <rect x="4.75" y="5.75" width="14.5" height="4.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            <rect x="7.75" y="13.75" width="8.5" height="4.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-        <button class="align-btn" data-dir="right" disabled title="Align right">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M20.25 3.75V20.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            <rect x="3.75" y="5.75" width="12.5" height="4.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            <rect x="7.75" y="13.75" width="8.5" height="4.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-      </div>
-
-      <div class="figma-segmented">
-        <button class="align-btn" data-dir="top" disabled title="Align top">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M3.75 3.75H20.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            <rect x="5.75" y="7.75" width="4.5" height="12.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            <rect x="13.75" y="7.75" width="4.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-        <button class="align-btn" data-dir="center-v" disabled title="Align vertical centers">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M2.75 12H5.75M10.25 12H13.75M18.25 12H21.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            <rect x="5.75" y="4.75" width="4.5" height="14.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            <rect x="13.75" y="7.75" width="4.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-        <button class="align-btn" data-dir="bottom" disabled title="Align bottom">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M3.75 20.25H20.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            <rect x="5.75" y="3.75" width="4.5" height="12.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            <rect x="13.75" y="7.75" width="4.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-      </div>
-
-      <div class="figma-segmented single">
-        <button class="align-btn" data-dir="center" disabled title="Align center (Horizontal & Vertical)">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2.75V7.75M12 16.25V21.25M2.75 12H7.75M16.25 12H21.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            <rect x="7.75" y="7.75" width="8.5" height="8.5" rx="2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-      </div>
+    <!-- Row 2: Figma Default 3x3 Alignment Grid Box -->
+    <div class="figma-matrix-box" id="matrix-box">
+      <button class="matrix-cell" data-dir="top-left" disabled title="Align Top Left"><span class="matrix-dot"></span><svg class="matrix-bars" viewBox="0 0 18 18"><use href="#bars-top" /></svg></button>
+      <button class="matrix-cell" data-dir="top-center" disabled title="Align Top Center"><span class="matrix-dot"></span><svg class="matrix-bars" viewBox="0 0 18 18"><use href="#bars-top" /></svg></button>
+      <button class="matrix-cell" data-dir="top-right" disabled title="Align Top Right"><span class="matrix-dot"></span><svg class="matrix-bars" viewBox="0 0 18 18"><use href="#bars-top" /></svg></button>
+      <button class="matrix-cell" data-dir="center-left" disabled title="Align Center Left"><span class="matrix-dot"></span><svg class="matrix-bars" viewBox="0 0 18 18"><use href="#bars-mid" /></svg></button>
+      <button class="matrix-cell active" data-dir="center" disabled title="Align Center"><span class="matrix-dot"></span><svg class="matrix-bars" viewBox="0 0 18 18"><use href="#bars-mid" /></svg></button>
+      <button class="matrix-cell" data-dir="center-right" disabled title="Align Center Right"><span class="matrix-dot"></span><svg class="matrix-bars" viewBox="0 0 18 18"><use href="#bars-mid" /></svg></button>
+      <button class="matrix-cell" data-dir="bottom-left" disabled title="Align Bottom Left"><span class="matrix-dot"></span><svg class="matrix-bars" viewBox="0 0 18 18"><use href="#bars-bot" /></svg></button>
+      <button class="matrix-cell" data-dir="bottom-center" disabled title="Align Bottom Center"><span class="matrix-dot"></span><svg class="matrix-bars" viewBox="0 0 18 18"><use href="#bars-bot" /></svg></button>
+      <button class="matrix-cell" data-dir="bottom-right" disabled title="Align Bottom Right"><span class="matrix-dot"></span><svg class="matrix-bars" viewBox="0 0 18 18"><use href="#bars-bot" /></svg></button>
     </div>
 
     <!-- Row 3: Gap Control -->
     <div class="gap-bar">
-      <div class="gap-input-wrap" title="Gap in pixels">
-        <svg class="gap-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M4.75 4.75V19.25M19.25 4.75V19.25M8.75 12H15.25" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
+      <div class="gap-input-wrap" title="Drag icon to scrub, or type a value and press Enter">
+        <div class="gap-scrub-handle">
+          <svg class="gap-icon" viewBox="0 0 24 24">
+            <path d="M4.75 4.75V19.25M19.25 4.75V19.25M8.75 12H15.25" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
         <input id="gap-input" class="gap-input" type="text" inputmode="numeric" value="0" spellcheck="false" autocomplete="off" />
         <span class="gap-unit">px</span>
       </div>
       <div class="gap-segmented">
         <button class="gap-btn" data-axis="h" disabled title="Apply Horizontal Gap">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg viewBox="0 0 24 24">
             <path d="M3.75 4.75V19.25M20.25 4.75V19.25M7.75 12H16.25M7.75 12L10.25 9.5M7.75 12L10.25 14.5M16.25 12L13.75 9.5M16.25 12L13.75 14.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
           H
         </button>
         <button class="gap-btn" data-axis="v" disabled title="Apply Vertical Gap">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg viewBox="0 0 24 24">
             <path d="M4.75 3.75H19.25M4.75 20.25H19.25M12 7.75V16.25M12 7.75L9.5 10.25M12 7.75L14.5 10.25M12 16.25L9.5 13.75M12 16.25L14.5 13.75" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
           V
@@ -392,22 +388,32 @@
   <script>
     const firstNameEl = document.getElementById("first-name");
     const secondNameEl = document.getElementById("second-name");
+    const firstTagEl = document.getElementById("first-tag");
+    const secondTagEl = document.getElementById("second-tag");
+    const firstPillEl = document.getElementById("first-pill");
+    const secondPillEl = document.getElementById("second-pill");
     const swapBtn = document.getElementById("swap-btn");
     const gapInput = document.getElementById("gap-input");
-    const gapIcon = document.querySelector(".gap-icon");
+    const gapScrubHandle = document.querySelector(".gap-scrub-handle");
     const gapInputWrap = document.querySelector(".gap-input-wrap");
     const gapBtns = document.querySelectorAll(".gap-btn");
-    const alignBtns = document.querySelectorAll(".align-btn");
+    const matrixCells = document.querySelectorAll(".matrix-cell");
     let hasValidPair = false;
+
+    const post = (pluginMessage) => parent.postMessage({ pluginMessage }, "*");
+
+    function setActiveMatrixSpot(dir) {
+      matrixCells.forEach((cell) => {
+        cell.classList.toggle("active", cell.getAttribute("data-dir") === dir);
+      });
+    }
 
     function cleanNumericString(raw) {
       let s = raw.replace(/[^0-9.-]/g, "");
       const isNeg = s.startsWith("-");
       s = s.replace(/-/g, "");
       const parts = s.split(".");
-      if (parts.length > 2) {
-        s = parts[0] + "." + parts.slice(1).join("");
-      }
+      if (parts.length > 2) s = parts[0] + "." + parts.slice(1).join("");
       return (isNeg ? "-" : "") + s;
     }
 
@@ -422,28 +428,21 @@
       return val;
     }
 
-    alignBtns.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const direction = btn.getAttribute("data-dir");
+    matrixCells.forEach((cell) => {
+      cell.addEventListener("click", () => {
+        const direction = cell.getAttribute("data-dir");
+        setActiveMatrixSpot(direction);
         normalizeGapInput();
-        parent.postMessage(
-          { pluginMessage: { type: "align", direction } },
-          "*"
-        );
+        post({ type: "align", direction });
       });
     });
 
     gapBtns.forEach((btn) => {
       btn.addEventListener("click", () => {
-        const axis = btn.getAttribute("data-axis");
-        parent.postMessage(
-          { pluginMessage: { type: "apply-gap", axis, gap: normalizeGapInput() } },
-          "*"
-        );
+        post({ type: "apply-gap", axis: btn.getAttribute("data-axis"), gap: normalizeGapInput() });
       });
     });
 
-    // Select all on first focus only, so later clicks can still place the caret
     let justFocused = false;
     gapInput.addEventListener("focus", () => {
       justFocused = true;
@@ -457,30 +456,25 @@
       }
     });
 
-    gapInput.addEventListener("blur", () => {
-      normalizeGapInput();
-    });
+    gapInput.addEventListener("blur", normalizeGapInput);
 
     gapInput.addEventListener("input", () => {
       const cleaned = cleanNumericString(gapInput.value);
-      if (gapInput.value !== cleaned) {
-        gapInput.value = cleaned;
-      }
+      if (gapInput.value !== cleaned) gapInput.value = cleaned;
     });
 
     gapInputWrap.addEventListener("click", (e) => {
-      if (e.target !== gapInput) {
+      if (e.target !== gapInput && !gapScrubHandle.contains(e.target)) {
         gapInput.focus();
         gapInput.select();
       }
     });
 
-    // Figma-style drag scrubbing on the gap icon
     let scrubStartX = 0;
     let scrubStartVal = 0;
     let isScrubbing = false;
 
-    gapIcon.addEventListener("mousedown", (e) => {
+    gapScrubHandle.addEventListener("mousedown", (e) => {
       e.preventDefault();
       isScrubbing = true;
       scrubStartX = e.clientX;
@@ -491,15 +485,9 @@
     window.addEventListener("mousemove", (e) => {
       if (!isScrubbing) return;
       const step = e.shiftKey ? 10 : 1;
-      const dx = Math.round((e.clientX - scrubStartX) / 2);
-      const nextVal = scrubStartVal + dx * step;
+      const nextVal = scrubStartVal + Math.round((e.clientX - scrubStartX) / 2) * step;
       gapInput.value = String(nextVal);
-      if (hasValidPair) {
-        parent.postMessage(
-          { pluginMessage: { type: "apply-gap", axis: "auto", gap: nextVal } },
-          "*"
-        );
-      }
+      if (hasValidPair) post({ type: "apply-gap", axis: "auto", gap: nextVal });
     });
 
     window.addEventListener("mouseup", () => {
@@ -513,103 +501,85 @@
       if (e.key === "ArrowUp" || e.key === "ArrowDown") {
         e.preventDefault();
         const step = e.shiftKey ? 10 : 1;
-        const delta = e.key === "ArrowUp" ? step : -step;
-        const nextVal = getGapValue() + delta;
+        const nextVal = getGapValue() + (e.key === "ArrowUp" ? step : -step);
         gapInput.value = String(nextVal);
         gapInput.select();
-        if (hasValidPair) {
-          parent.postMessage(
-            { pluginMessage: { type: "apply-gap", axis: "auto", gap: nextVal } },
-            "*"
-          );
-        }
-        return;
-      }
-      if (e.key === "Enter") {
-        parent.postMessage(
-          { pluginMessage: { type: "apply-gap", axis: "auto", gap: normalizeGapInput() } },
-          "*"
-        );
+        if (hasValidPair) post({ type: "apply-gap", axis: "auto", gap: nextVal });
+      } else if (e.key === "Enter") {
+        post({ type: "apply-gap", axis: "auto", gap: normalizeGapInput() });
         gapInput.select();
       }
     });
 
-    swapBtn.addEventListener("click", () => {
-      parent.postMessage({ pluginMessage: { type: "swap-order" } }, "*");
-    });
+    swapBtn.addEventListener("click", () => post({ type: "swap-order" }));
 
     window.onmessage = (event) => {
       const msg = event.data && event.data.pluginMessage;
       if (!msg || msg.type !== "selection-updated") return;
 
+      const isParentMode = msg.mode === "parent";
+      firstTagEl.textContent = isParentMode ? "Item" : "1st";
+      secondTagEl.textContent = isParentMode ? "Frame" : "2nd";
+
       if (msg.first) {
         firstNameEl.textContent = msg.first.name;
-        firstNameEl.parentElement.title =
-          msg.mode === "parent"
-            ? `Moves: ${msg.first.name}`
-            : `1st (Moves): ${msg.first.name}`;
+        firstPillEl.title = isParentMode
+          ? `Moving inside parent: ${msg.first.name}`
+          : `1st selected (Moves): ${msg.first.name}`;
         firstNameEl.classList.remove("empty");
       } else {
-        firstNameEl.textContent = "1st layer";
-        firstNameEl.parentElement.title = "1st selected (Moves)";
+        firstNameEl.textContent = "Select layer";
+        firstPillEl.title = "1st selected (Moves)";
         firstNameEl.classList.add("empty");
       }
 
       if (msg.second) {
         secondNameEl.textContent = msg.second.name;
-        secondNameEl.parentElement.title =
-          msg.mode === "parent"
-            ? `Target: ${msg.second.name}`
-            : `2nd (Target): ${msg.second.name}`;
+        secondPillEl.title = isParentMode
+          ? `Parent Frame Target: ${msg.second.name}`
+          : `2nd selected (Target): ${msg.second.name}`;
         secondNameEl.classList.remove("empty");
       } else {
-        secondNameEl.textContent = "2nd layer";
-        secondNameEl.parentElement.title = "2nd selected (Target)";
+        secondNameEl.textContent = "Target layer";
+        secondPillEl.title = "2nd selected (Target)";
         secondNameEl.classList.add("empty");
       }
 
-      if (msg.gapInfo) {
-        const prefix = msg.gapInfo.inside ? "Inner inset" : "Current gap";
-        gapInputWrap.title = `${prefix} — H: ${msg.gapInfo.h}px, V: ${msg.gapInfo.v}px (Drag icon to scrub)`;
-      } else {
-        gapInputWrap.title = "Gap in pixels (Drag icon to scrub)";
-      }
+      if (msg.activeSpot) setActiveMatrixSpot(msg.activeSpot);
+
+      gapInputWrap.title = msg.gapInfo
+        ? `${msg.gapInfo.inside ? "Inner inset" : "Current gap"} — H: ${msg.gapInfo.h}px, V: ${msg.gapInfo.v}px (Drag icon to scrub)`
+        : "Drag icon to scrub, or type a value and press Enter";
 
       hasValidPair = Boolean(msg.first && msg.second);
       swapBtn.disabled = !hasValidPair || msg.canSwap === false;
       swapBtn.title =
         hasValidPair && msg.canSwap === false
           ? "Target cannot be moved"
-          : msg.mode === "parent"
+          : isParentMode
             ? "Switch to 1st ⇄ 2nd alignment"
             : "Swap 1st & 2nd (or cycle Parent alignment)";
 
-      gapBtns.forEach((btn) => {
-        btn.disabled = !hasValidPair;
-      });
-      alignBtns.forEach((btn) => {
-        btn.disabled = !hasValidPair;
-      });
+      matrixCells.forEach((cell) => (cell.disabled = !hasValidPair));
+      gapBtns.forEach((btn) => (btn.disabled = !hasValidPair));
     };
 
+    const appEl = document.getElementById("app");
     function fitWindowToContent() {
-      const appEl = document.getElementById("app");
       const height = Math.ceil(appEl.getBoundingClientRect().height);
-      if (height > 0) {
-        parent.postMessage({ pluginMessage: { type: "resize", height } }, "*");
-      }
+      if (height > 0) post({ type: "resize", height });
     }
 
     fitWindowToContent();
     if (typeof ResizeObserver !== "undefined") {
-      new ResizeObserver(fitWindowToContent).observe(document.getElementById("app"));
+      new ResizeObserver(fitWindowToContent).observe(appEl);
     }
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(fitWindowToContent);
     }
     window.addEventListener("load", fitWindowToContent);
 
-    parent.postMessage({ pluginMessage: { type: "ui-ready" } }, "*");
+    post({ type: "ui-ready" });
   </script>
 </body>
 </html>

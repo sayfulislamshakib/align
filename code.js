@@ -1,12 +1,10 @@
-figma.showUI(__html__, { width: 240, height: 112, themeColors: true });
+const UI_WIDTH = 176;
+figma.showUI(__html__, { width: UI_WIDTH, height: 158, themeColors: true });
 
-// Track selection order because Figma's selection array does not always preserve click order.
 let orderedSelectionIds = [];
-// Mode when items have parent frames: "parent" (align each item to its parent frame) or "pair" (align 1st to 2nd)
 let pairOverrideState = 0; // 0 = auto ("parent" if inside frame), 1 = 1st->2nd, 2 = 2nd->1st
 let lastSelectionSignature = "";
 
-// Safely verify that a node proxy (especially an instance sublayer or table cell) still exists
 function isValidNode(node) {
   if (!node) return false;
   try {
@@ -21,14 +19,7 @@ function isValidNode(node) {
 
 function getValidSelection() {
   try {
-    const raw = figma.currentPage.selection;
-    const valid = [];
-    for (let i = 0; i < raw.length; i++) {
-      if (isValidNode(raw[i])) {
-        valid.push(raw[i]);
-      }
-    }
-    return valid;
+    return figma.currentPage.selection.filter(isValidNode);
   } catch (err) {
     return [];
   }
@@ -37,76 +28,55 @@ function getValidSelection() {
 function isAncestor(ancestor, node) {
   if (!isValidNode(ancestor) || !isValidNode(node)) return false;
   try {
-    let p = node.parent;
-    while (p) {
+    for (let p = node.parent; p; p = p.parent) {
       if (p.id === ancestor.id) return true;
-      p = p.parent;
     }
-  } catch (err) {
-    return false;
-  }
+  } catch (err) {}
   return false;
 }
 
-function isLockedOrHasLockedAncestor(node) {
+// Nearest ancestor that defines local coordinates (skips GROUP and BOOLEAN_OPERATION)
+function getCoordinateParent(node) {
+  if (!isValidNode(node)) return null;
   try {
-    let curr = node;
-    while (curr && curr.type !== "PAGE" && curr.type !== "DOCUMENT") {
-      if ("locked" in curr && curr.locked) return true;
-      curr = curr.parent;
-    }
-  } catch (err) {
-    return false;
-  }
-  return false;
-}
-
-function isReadOnlyInstanceSublayer(node) {
-  try {
-    if (!node || typeof node.id !== "string" || !node.id.startsWith("I")) {
-      return false;
-    }
     let p = node.parent;
-    while (p && p.type !== "PAGE" && p.type !== "DOCUMENT") {
-      if (p.type === "SLOT") return false;
-      if (p.type === "INSTANCE") return true;
+    while (p && (p.type === "GROUP" || p.type === "BOOLEAN_OPERATION")) {
       p = p.parent;
     }
+    return p;
   } catch (err) {
-    return false;
+    return null;
   }
-  return false;
 }
 
-function isInAutoLayoutFlow(node) {
-  try {
-    return Boolean(
-      node.parent &&
-      "layoutMode" in node.parent &&
-      node.parent.layoutMode !== "NONE" &&
-      (!("layoutPositioning" in node) || node.layoutPositioning !== "ABSOLUTE")
-    );
-  } catch (err) {
-    return false;
-  }
+function getParentFrame(node) {
+  const p = getCoordinateParent(node);
+  if (!p || p.type === "PAGE" || p.type === "DOCUMENT") return null;
+  return "width" in p && "height" in p ? p : null;
 }
 
 function getNonMovableReason(node, checkInstanceSublayer = true) {
-  if (!isValidNode(node)) {
-    return "no longer exists";
-  }
+  if (!isValidNode(node)) return "no longer exists";
   try {
     if (!("x" in node) || !("y" in node) || !("width" in node)) {
       return "does not support positioning";
     }
-    if (isLockedOrHasLockedAncestor(node)) {
-      return "is locked";
+    for (let c = node; c && c.type !== "PAGE" && c.type !== "DOCUMENT"; c = c.parent) {
+      if ("locked" in c && c.locked) return "is locked";
     }
-    if (isInAutoLayoutFlow(node)) {
+    if (
+      node.parent &&
+      "layoutMode" in node.parent &&
+      node.parent.layoutMode !== "NONE" &&
+      (!("layoutPositioning" in node) || node.layoutPositioning !== "ABSOLUTE")
+    ) {
       return "is inside an Auto Layout frame";
     }
-    if (checkInstanceSublayer && isReadOnlyInstanceSublayer(node)) {
-      return "is a fixed layer inside a component instance";
+    if (checkInstanceSublayer && typeof node.id === "string" && node.id.startsWith("I")) {
+      for (let p = node.parent; p && p.type !== "PAGE" && p.type !== "DOCUMENT"; p = p.parent) {
+        if (p.type === "SLOT") break;
+        if (p.type === "INSTANCE") return "is a fixed layer inside a component instance";
+      }
     }
     return null;
   } catch (err) {
@@ -118,48 +88,18 @@ function isMovableNode(node) {
   return getNonMovableReason(node) === null;
 }
 
-// Find the nearest parent frame/container (excluding PAGE, DOCUMENT, GROUP, BOOLEAN_OPERATION)
-function getParentFrame(node) {
-  if (!isValidNode(node)) return null;
-  try {
-    let p = node.parent;
-    while (p && (p.type === "GROUP" || p.type === "BOOLEAN_OPERATION")) {
-      p = p.parent;
-    }
-    if (!p || p.type === "PAGE" || p.type === "DOCUMENT") {
-      return null;
-    }
-    if ("width" in p && "height" in p) {
-      return p;
-    }
-    return null;
-  } catch (err) {
-    return null;
-  }
-}
-
-// Filter out selected nodes that are ancestors of other selected nodes
-function getLeafSelectedNodes(nodes) {
-  return nodes.filter(
+function getParentAlignmentPairs(nodes) {
+  if (!nodes.length) return null;
+  const leafNodes = nodes.filter(
     (n) => !nodes.some((other) => other.id !== n.id && isAncestor(n, other))
   );
-}
-
-// Returns [{ node, parentFrame }] if the selection should align each item to its parent frame
-function getParentAlignmentPairs(nodes) {
-  if (nodes.length === 0) return null;
-
-  // If 2 nodes are selected and one is the ancestor of the other, that is already child -> parent
-  const leafNodes = getLeafSelectedNodes(nodes);
-  if (leafNodes.length === 0) return null;
+  if (!leafNodes.length) return null;
 
   const pairs = [];
-  for (let i = 0; i < leafNodes.length; i++) {
-    const parentFrame = getParentFrame(leafNodes[i]);
-    if (!parentFrame) {
-      return null;
-    }
-    pairs.push({ node: leafNodes[i], parentFrame });
+  for (const node of leafNodes) {
+    const parentFrame = getParentFrame(node);
+    if (!parentFrame) return null;
+    pairs.push({ node, parentFrame });
   }
   return pairs;
 }
@@ -173,7 +113,6 @@ function ensureMovableFirst(validSelection) {
 
   const firstCanMove = isMovableNode(first) && !isAncestor(first, second);
   const secondCanMove = isMovableNode(second) && !isAncestor(second, first);
-
   if (!firstCanMove && secondCanMove) {
     orderedSelectionIds[0] = second.id;
     orderedSelectionIds[1] = first.id;
@@ -185,7 +124,6 @@ function syncSelectionOrder(notifyUI = true) {
   const currentIds = new Set(currentSelection.map((n) => n.id));
 
   orderedSelectionIds = orderedSelectionIds.filter((id) => currentIds.has(id));
-
   for (const node of currentSelection) {
     if (!orderedSelectionIds.includes(node.id)) {
       orderedSelectionIds.push(node.id);
@@ -201,36 +139,23 @@ function syncSelectionOrder(notifyUI = true) {
   if (pairOverrideState === 0) {
     ensureMovableFirst(currentSelection);
   }
-
-  if (notifyUI) {
-    sendSelectionState();
-  }
+  if (notifyUI) sendSelectionState();
 }
 
 function getOrderedNodes() {
   syncSelectionOrder(false);
-  const currentSelection = getValidSelection();
-  const map = new Map(currentSelection.map((n) => [n.id, n]));
+  const map = new Map(getValidSelection().map((n) => [n.id, n]));
   return orderedSelectionIds.map((id) => map.get(id)).filter(Boolean);
 }
 
 function getAbsoluteBounds(node) {
   try {
     if (node.absoluteBoundingBox) {
-      return {
-        x: node.absoluteBoundingBox.x,
-        y: node.absoluteBoundingBox.y,
-        width: node.absoluteBoundingBox.width,
-        height: node.absoluteBoundingBox.height,
-      };
+      const b = node.absoluteBoundingBox;
+      return { x: b.x, y: b.y, width: b.width, height: b.height };
     }
     const t = node.absoluteTransform;
-    return {
-      x: t[0][2],
-      y: t[1][2],
-      width: node.width,
-      height: node.height,
-    };
+    return { x: t[0][2], y: t[1][2], width: node.width, height: node.height };
   } catch (err) {
     return null;
   }
@@ -242,81 +167,85 @@ function cleanNum(v) {
 
 function computeCurrentGapInfo(first, second) {
   if (!isValidNode(first) || !isValidNode(second)) return null;
-  try {
-    if (!("width" in first) || !("width" in second)) return null;
-    const r1 = getAbsoluteBounds(first);
-    const r2 = getAbsoluteBounds(second);
-    if (!r1 || !r2) return null;
+  const r1 = getAbsoluteBounds(first);
+  const r2 = getAbsoluteBounds(second);
+  if (!r1 || !r2) return null;
 
-    if (isAncestor(second, first)) {
-      const leftGap = cleanNum(r1.x - r2.x);
-      const rightGap = cleanNum((r2.x + r2.width) - (r1.x + r1.width));
-      const topGap = cleanNum(r1.y - r2.y);
-      const bottomGap = cleanNum((r2.y + r2.height) - (r1.y + r1.height));
-      return {
-        h: Math.min(leftGap, rightGap),
-        v: Math.min(topGap, bottomGap),
-        inside: true,
-      };
-    }
-
-    const sepX = Math.max(r1.x - (r2.x + r2.width), r2.x - (r1.x + r1.width));
-    const sepY = Math.max(r1.y - (r2.y + r2.height), r2.y - (r1.y + r1.height));
+  if (isAncestor(second, first)) {
     return {
-      h: cleanNum(Math.max(0, sepX)),
-      v: cleanNum(Math.max(0, sepY)),
-      inside: false,
+      h: Math.min(cleanNum(r1.x - r2.x), cleanNum(r2.x + r2.width - (r1.x + r1.width))),
+      v: Math.min(cleanNum(r1.y - r2.y), cleanNum(r2.y + r2.height - (r1.y + r1.height))),
+      inside: true,
     };
-  } catch (err) {
-    return null;
   }
+
+  const sepX = Math.max(r1.x - (r2.x + r2.width), r2.x - (r1.x + r1.width));
+  const sepY = Math.max(r1.y - (r2.y + r2.height), r2.y - (r1.y + r1.height));
+  return {
+    h: cleanNum(Math.max(0, sepX)),
+    v: cleanNum(Math.max(0, sepY)),
+    inside: false,
+  };
 }
 
-function safeNodeSummary(node) {
-  if (!isValidNode(node)) return null;
-  try {
-    return { id: node.id, name: node.name, type: node.type };
-  } catch (err) {
-    return null;
-  }
+function detectActiveSpot(first, second) {
+  const r1 = getAbsoluteBounds(first);
+  const r2 = getAbsoluteBounds(second);
+  if (!r1 || !r2) return "center";
+
+  const tol = 1.5;
+  const c1x = r1.x + r1.width / 2;
+  const c2x = r2.x + r2.width / 2;
+  const c1y = r1.y + r1.height / 2;
+  const c2y = r2.y + r2.height / 2;
+
+  const h =
+    Math.abs(r1.x - r2.x) <= tol
+      ? "left"
+      : Math.abs(r1.x + r1.width - (r2.x + r2.width)) <= tol
+        ? "right"
+        : Math.abs(c1x - c2x) <= tol
+          ? "center"
+          : c1x < c2x - r2.width * 0.15
+            ? "left"
+            : c1x > c2x + r2.width * 0.15
+              ? "right"
+              : "center";
+
+  const v =
+    Math.abs(r1.y - r2.y) <= tol
+      ? "top"
+      : Math.abs(r1.y + r1.height - (r2.y + r2.height)) <= tol
+        ? "bottom"
+        : Math.abs(c1y - c2y) <= tol
+          ? "center"
+          : c1y < c2y - r2.height * 0.15
+            ? "top"
+            : c1y > c2y + r2.height * 0.15
+              ? "bottom"
+              : "center";
+
+  return v === "center" && h === "center" ? "center" : `${v}-${h}`;
 }
 
 function shouldUseParentMode(nodes, parentPairs) {
-  if (!parentPairs || parentPairs.length === 0) return false;
-  // When 1 item inside a frame or 3+ items inside frame(s) are selected, always use parent mode
+  if (!parentPairs || !parentPairs.length) return false;
   if (nodes.length === 1 || nodes.length > 2) return true;
-  // When 2 items inside frame(s) are selected: use parent mode unless the user toggled to pair mode via Swap
-  if (pairOverrideState !== 0) return false;
-  return true;
+  return pairOverrideState === 0;
 }
 
 function sendSelectionState() {
   const nodes = getOrderedNodes();
   const parentPairs = getParentAlignmentPairs(nodes);
-  const useParentMode = shouldUseParentMode(nodes, parentPairs);
 
-  if (useParentMode && parentPairs) {
-    const movingNames = parentPairs.map((p) => p.node.name);
-    const uniqueParents = [];
-    const seenParentIds = new Set();
-    for (let i = 0; i < parentPairs.length; i++) {
-      const pf = parentPairs[i].parentFrame;
-      if (!seenParentIds.has(pf.id)) {
-        seenParentIds.add(pf.id);
-        uniqueParents.push(pf);
-      }
-    }
-
+  if (shouldUseParentMode(nodes, parentPairs)) {
+    const uniqueParentIds = new Set(parentPairs.map((p) => p.parentFrame.id));
     const firstLabel =
-      parentPairs.length === 1
-        ? parentPairs[0].node.name
-        : `${parentPairs.length} items (${movingNames.join(", ")})`;
-
+      parentPairs.length === 1 ? parentPairs[0].node.name : `${parentPairs.length} items`;
     const secondLabel =
-      uniqueParents.length === 1
-        ? `${uniqueParents[0].name} (Parent)`
-        : `Each Parent (${uniqueParents.length})`;
-
+      uniqueParentIds.size === 1
+        ? parentPairs[0].parentFrame.name
+        : `Each (${uniqueParentIds.size})`;
     const canSwapToPair =
       nodes.length === 2 &&
       !isAncestor(nodes[0], nodes[1]) &&
@@ -326,9 +255,10 @@ function sendSelectionState() {
       type: "selection-updated",
       mode: "parent",
       count: parentPairs.length,
-      first: { id: "multi-children", name: firstLabel, type: "GROUP" },
-      second: { id: "multi-parents", name: secondLabel, type: "FRAME" },
+      first: { id: "multi-children", name: firstLabel },
+      second: { id: "multi-parents", name: secondLabel },
       canSwap: canSwapToPair,
+      activeSpot: detectActiveSpot(parentPairs[0].node, parentPairs[0].parentFrame),
       gapInfo: computeCurrentGapInfo(parentPairs[0].node, parentPairs[0].parentFrame),
     });
     return;
@@ -336,13 +266,12 @@ function sendSelectionState() {
 
   const first = nodes[0] || null;
   const second = nodes[1] || null;
-  const firstSummary = safeNodeSummary(first);
-  const secondSummary = safeNodeSummary(second);
-
+  const firstSummary = isValidNode(first) ? { id: first.id, name: first.name } : null;
+  const secondSummary = isValidNode(second) ? { id: second.id, name: second.name } : null;
   const canSwap = Boolean(
     firstSummary &&
-    secondSummary &&
-    ((isMovableNode(second) && !isAncestor(second, first)) || Boolean(parentPairs))
+      secondSummary &&
+      ((isMovableNode(second) && !isAncestor(second, first)) || Boolean(parentPairs))
   );
 
   figma.ui.postMessage({
@@ -352,35 +281,9 @@ function sendSelectionState() {
     first: firstSummary,
     second: secondSummary,
     canSwap,
+    activeSpot: firstSummary && secondSummary ? detectActiveSpot(first, second) : "center",
     gapInfo: firstSummary && secondSummary ? computeCurrentGapInfo(first, second) : null,
   });
-}
-
-// Initialize on launch
-syncSelectionOrder(true);
-
-figma.on("selectionchange", () => {
-  syncSelectionOrder(true);
-});
-
-figma.on("currentpagechange", () => {
-  orderedSelectionIds = [];
-  pairOverrideState = 0;
-  lastSelectionSignature = "";
-  syncSelectionOrder(true);
-});
-
-// Find the nearest ancestor that defines a local coordinate system for node.x / node.y
-function getCoordinateParent(node) {
-  try {
-    let p = node.parent;
-    while (p && (p.type === "GROUP" || p.type === "BOOLEAN_OPERATION")) {
-      p = p.parent;
-    }
-    return p;
-  } catch (err) {
-    return null;
-  }
 }
 
 function setAbsolutePosition(node, targetAbsX, targetAbsY) {
@@ -389,10 +292,7 @@ function setAbsolutePosition(node, targetAbsX, targetAbsY) {
 
   const deltaAbsX = targetAbsX - currentAbs.x;
   const deltaAbsY = targetAbsY - currentAbs.y;
-
-  if (Math.abs(deltaAbsX) < 1e-6 && Math.abs(deltaAbsY) < 1e-6) {
-    return false;
-  }
+  if (Math.abs(deltaAbsX) < 1e-6 && Math.abs(deltaAbsY) < 1e-6) return false;
 
   let localDx = deltaAbsX;
   let localDy = deltaAbsY;
@@ -400,15 +300,10 @@ function setAbsolutePosition(node, targetAbsX, targetAbsY) {
   const coordParent = getCoordinateParent(node);
   if (coordParent && "absoluteTransform" in coordParent) {
     const m = coordParent.absoluteTransform;
-    const a = m[0][0];
-    const b = m[0][1];
-    const c = m[1][0];
-    const d = m[1][1];
-    const det = a * d - b * c;
-
+    const det = m[0][0] * m[1][1] - m[0][1] * m[1][0];
     if (Math.abs(det) > 1e-8) {
-      localDx = (d * deltaAbsX - b * deltaAbsY) / det;
-      localDy = (-c * deltaAbsX + a * deltaAbsY) / det;
+      localDx = (m[1][1] * deltaAbsX - m[0][1] * deltaAbsY) / det;
+      localDy = (-m[1][0] * deltaAbsX + m[0][0] * deltaAbsY) / det;
     }
   }
 
@@ -426,161 +321,152 @@ function setAbsolutePosition(node, targetAbsX, targetAbsY) {
   return moved;
 }
 
-function alignSingleNodeToTarget(first, second, direction) {
-  const firstRect = getAbsoluteBounds(first);
-  const secondRect = getAbsoluteBounds(second);
-  if (!firstRect || !secondRect) return false;
+function alignNode(first, second, dir) {
+  const r1 = getAbsoluteBounds(first);
+  const r2 = getAbsoluteBounds(second);
+  if (!r1 || !r2) return false;
 
-  let newAbsX = firstRect.x;
-  let newAbsY = firstRect.y;
+  let x = r1.x;
+  let y = r1.y;
 
-  switch (direction) {
-    case "left":
-      newAbsX = secondRect.x;
-      break;
-    case "right":
-      newAbsX = secondRect.x + secondRect.width - firstRect.width;
-      break;
-    case "top":
-      newAbsY = secondRect.y;
-      break;
-    case "bottom":
-      newAbsY = secondRect.y + secondRect.height - firstRect.height;
-      break;
-    case "center-h":
-      newAbsX = secondRect.x + (secondRect.width - firstRect.width) / 2;
-      break;
-    case "center-v":
-      newAbsY = secondRect.y + (secondRect.height - firstRect.height) / 2;
-      break;
-    case "center":
-      newAbsX = secondRect.x + (secondRect.width - firstRect.width) / 2;
-      newAbsY = secondRect.y + (secondRect.height - firstRect.height) / 2;
-      break;
-    default:
-      return false;
+  if (dir.includes("left")) x = r2.x;
+  else if (dir.includes("right")) x = r2.x + r2.width - r1.width;
+  else if (dir === "center" || dir === "center-h" || dir.endsWith("-center")) {
+    x = r2.x + (r2.width - r1.width) / 2;
   }
 
-  return setAbsolutePosition(first, newAbsX, newAbsY);
+  if (dir.includes("top")) y = r2.y;
+  else if (dir.includes("bottom")) y = r2.y + r2.height - r1.height;
+  else if (dir === "center" || dir === "center-v" || dir.startsWith("center-")) {
+    y = r2.y + (r2.height - r1.height) / 2;
+  }
+
+  return setAbsolutePosition(first, x, y);
 }
 
-function applyGapSingleNodeToTarget(first, second, rawAxis, gap) {
-  const firstRect = getAbsoluteBounds(first);
-  const secondRect = getAbsoluteBounds(second);
-  if (!firstRect || !secondRect) return false;
+function applyGapNode(first, second, rawAxis, gap) {
+  const r1 = getAbsoluteBounds(first);
+  const r2 = getAbsoluteBounds(second);
+  if (!r1 || !r2) return false;
 
-  const firstCenterX = firstRect.x + firstRect.width / 2;
-  const firstCenterY = firstRect.y + firstRect.height / 2;
-  const secondCenterX = secondRect.x + secondRect.width / 2;
-  const secondCenterY = secondRect.y + secondRect.height / 2;
-
-  const childInsideTarget = isAncestor(second, first);
+  const c1x = r1.x + r1.width / 2;
+  const c1y = r1.y + r1.height / 2;
+  const c2x = r2.x + r2.width / 2;
+  const c2y = r2.y + r2.height / 2;
+  const inside = isAncestor(second, first);
 
   let axis = rawAxis;
   if (axis === "auto") {
-    if (childInsideTarget) {
-      const distH = Math.min(
-        Math.abs(firstRect.x - secondRect.x),
-        Math.abs((secondRect.x + secondRect.width) - (firstRect.x + firstRect.width))
-      );
-      const distV = Math.min(
-        Math.abs(firstRect.y - secondRect.y),
-        Math.abs((secondRect.y + secondRect.height) - (firstRect.y + firstRect.height))
-      );
+    if (inside) {
+      const distH = Math.min(Math.abs(r1.x - r2.x), Math.abs(r2.x + r2.width - (r1.x + r1.width)));
+      const distV = Math.min(Math.abs(r1.y - r2.y), Math.abs(r2.y + r2.height - (r1.y + r1.height)));
       axis = distH <= distV ? "h" : "v";
     } else {
-      const sepX = Math.max(
-        firstRect.x - (secondRect.x + secondRect.width),
-        secondRect.x - (firstRect.x + firstRect.width)
-      );
-      const sepY = Math.max(
-        firstRect.y - (secondRect.y + secondRect.height),
-        secondRect.y - (firstRect.y + firstRect.height)
-      );
-      if (sepX > 0 || sepY > 0) {
-        axis = sepX >= sepY ? "h" : "v";
-      } else {
-        const dx = Math.abs(firstCenterX - secondCenterX);
-        const dy = Math.abs(firstCenterY - secondCenterY);
-        axis = dx >= dy ? "h" : "v";
-      }
+      const sepX = Math.max(r1.x - (r2.x + r2.width), r2.x - (r1.x + r1.width));
+      const sepY = Math.max(r1.y - (r2.y + r2.height), r2.y - (r1.y + r1.height));
+      axis =
+        sepX > 0 || sepY > 0
+          ? sepX >= sepY
+            ? "h"
+            : "v"
+          : Math.abs(c1x - c2x) >= Math.abs(c1y - c2y)
+            ? "h"
+            : "v";
     }
   }
 
-  let newAbsX = firstRect.x;
-  let newAbsY = firstRect.y;
+  let x = r1.x;
+  let y = r1.y;
 
-  if (childInsideTarget) {
-    if (axis === "h") {
-      if (firstCenterX <= secondCenterX) {
-        newAbsX = secondRect.x + gap;
-      } else {
-        newAbsX = secondRect.x + secondRect.width - firstRect.width - gap;
-      }
-    } else if (axis === "v") {
-      if (firstCenterY <= secondCenterY) {
-        newAbsY = secondRect.y + gap;
-      } else {
-        newAbsY = secondRect.y + secondRect.height - firstRect.height - gap;
-      }
-    }
+  if (inside) {
+    if (axis === "h") x = c1x <= c2x ? r2.x + gap : r2.x + r2.width - r1.width - gap;
+    else if (axis === "v") y = c1y <= c2y ? r2.y + gap : r2.y + r2.height - r1.height - gap;
   } else {
-    if (axis === "h") {
-      if (firstCenterX < secondCenterX) {
-        newAbsX = secondRect.x - firstRect.width - gap;
-      } else {
-        newAbsX = secondRect.x + secondRect.width + gap;
-      }
-    } else if (axis === "v") {
-      if (firstCenterY < secondCenterY) {
-        newAbsY = secondRect.y - firstRect.height - gap;
-      } else {
-        newAbsY = secondRect.y + secondRect.height + gap;
-      }
-    }
+    if (axis === "h") x = c1x < c2x ? r2.x - r1.width - gap : r2.x + r2.width + gap;
+    else if (axis === "v") y = c1y < c2y ? r2.y - r1.height - gap : r2.y + r2.height + gap;
   }
 
-  return setAbsolutePosition(first, newAbsX, newAbsY);
+  return setAbsolutePosition(first, x, y);
 }
 
-function validateAndPreparePairNodes(nodes) {
+function executeAction(actionFn) {
+  const nodes = getOrderedNodes();
+  const parentPairs = getParentAlignmentPairs(nodes);
+
+  if (shouldUseParentMode(nodes, parentPairs)) {
+    let anyMoved = false;
+    let blockedReason = null;
+    let blockedName = "";
+
+    for (const { node, parentFrame } of parentPairs) {
+      const reason = getNonMovableReason(node, false);
+      if (reason) {
+        blockedReason = reason;
+        blockedName = node.name;
+        continue;
+      }
+      try {
+        if (actionFn(node, parentFrame)) anyMoved = true;
+      } catch (err) {
+        blockedReason = "cannot be moved";
+        blockedName = node.name;
+      }
+    }
+
+    if (anyMoved) figma.commitUndo();
+    else if (blockedReason) {
+      figma.notify(`Cannot move "${blockedName}" because it ${blockedReason}.`, { error: true });
+    }
+    sendSelectionState();
+    return;
+  }
+
   if (nodes.length < 2) {
     figma.notify("Please select at least 2 frames or layers.", { error: true });
-    return null;
+    return;
   }
 
-  const first = nodes[0];
-  const second = nodes[1];
-
+  const [first, second] = nodes;
   if (!isValidNode(first) || !isValidNode(second)) {
     syncSelectionOrder(true);
-    return null;
+    return;
   }
-
   if (isAncestor(first, second)) {
     figma.notify("1st layer contains the 2nd layer. Click \"Swap\" to move the inner layer.", { error: true });
-    return null;
+    return;
   }
-
   const reason = getNonMovableReason(first, false);
   if (reason) {
     figma.notify(`Cannot move "${first.name}" because it ${reason}.`, { error: true });
-    return null;
+    return;
   }
-
   if (!("width" in second) || !("height" in second)) {
     figma.notify("Selected target layer does not support alignment.", { error: true });
-    return null;
+    return;
   }
 
-  return { first, second };
+  try {
+    if (actionFn(first, second)) figma.commitUndo();
+    sendSelectionState();
+  } catch (err) {
+    figma.notify(`Cannot move "${first.name}".`, { error: true });
+  }
 }
+
+syncSelectionOrder(true);
+figma.on("selectionchange", () => syncSelectionOrder(true));
+figma.on("currentpagechange", () => {
+  orderedSelectionIds = [];
+  pairOverrideState = 0;
+  lastSelectionSignature = "";
+  syncSelectionOrder(true);
+});
 
 figma.ui.onmessage = (msg) => {
   if (!msg || !msg.type) return;
 
   if (msg.type === "resize" && typeof msg.height === "number") {
-    figma.ui.resize(240, Math.max(80, Math.round(msg.height)));
+    figma.ui.resize(UI_WIDTH, Math.max(80, Math.round(msg.height)));
     return;
   }
 
@@ -590,11 +476,9 @@ figma.ui.onmessage = (msg) => {
   }
 
   if (msg.type === "swap-order") {
-    syncSelectionOrder(false);
     const nodes = getOrderedNodes();
     const parentPairs = getParentAlignmentPairs(nodes);
 
-    // If 2 items inside frame(s) are selected, cycle: Parent Mode (0) -> 1st to 2nd (1) -> 2nd to 1st (2) -> Parent Mode (0)
     if (
       nodes.length === 2 &&
       parentPairs &&
@@ -604,157 +488,41 @@ figma.ui.onmessage = (msg) => {
       if (pairOverrideState === 0) {
         pairOverrideState = 1;
         ensureMovableFirst(nodes);
-        sendSelectionState();
-        return;
-      } else if (pairOverrideState === 1) {
-        const second = nodes[1];
-        const reason = getNonMovableReason(second);
-        if (!reason && !isAncestor(second, nodes[0])) {
-          const temp = orderedSelectionIds[0];
-          orderedSelectionIds[0] = orderedSelectionIds[1];
-          orderedSelectionIds[1] = temp;
-          pairOverrideState = 2;
-          sendSelectionState();
-          return;
-        } else {
-          pairOverrideState = 0;
-          sendSelectionState();
-          return;
-        }
+      } else if (pairOverrideState === 1 && !getNonMovableReason(nodes[1]) && !isAncestor(nodes[1], nodes[0])) {
+        [orderedSelectionIds[0], orderedSelectionIds[1]] = [orderedSelectionIds[1], orderedSelectionIds[0]];
+        pairOverrideState = 2;
       } else {
-        // Swap back original order and return to parent mode
-        const temp = orderedSelectionIds[0];
-        orderedSelectionIds[0] = orderedSelectionIds[1];
-        orderedSelectionIds[1] = temp;
+        if (pairOverrideState === 2) {
+          [orderedSelectionIds[0], orderedSelectionIds[1]] = [orderedSelectionIds[1], orderedSelectionIds[0]];
+        }
         pairOverrideState = 0;
         ensureMovableFirst(nodes);
-        sendSelectionState();
-        return;
       }
+      sendSelectionState();
+      return;
     }
 
-    if (orderedSelectionIds.length >= 2) {
-      const validSelection = getValidSelection();
-      const map = new Map(validSelection.map((n) => [n.id, n]));
-      const first = map.get(orderedSelectionIds[0]);
-      const second = map.get(orderedSelectionIds[1]);
-      if (first && second) {
-        const reason = getNonMovableReason(second);
-        if (reason) {
-          figma.notify(`"${second.name}" ${reason} and cannot be set as the moving layer.`, { error: true });
-          return;
-        }
-        if (isAncestor(second, first)) {
-          figma.notify(`"${second.name}" contains "${first.name}" and cannot be set as the moving layer.`, { error: true });
-          return;
-        }
+    if (nodes.length >= 2) {
+      const [first, second] = nodes;
+      const reason = getNonMovableReason(second);
+      if (reason) {
+        figma.notify(`"${second.name}" ${reason} and cannot be set as the moving layer.`, { error: true });
+        return;
       }
-      const temp = orderedSelectionIds[0];
-      orderedSelectionIds[0] = orderedSelectionIds[1];
-      orderedSelectionIds[1] = temp;
+      if (isAncestor(second, first)) {
+        figma.notify(`"${second.name}" contains "${first.name}" and cannot be set as the moving layer.`, { error: true });
+        return;
+      }
+      [orderedSelectionIds[0], orderedSelectionIds[1]] = [orderedSelectionIds[1], orderedSelectionIds[0]];
       sendSelectionState();
     }
     return;
   }
 
   if (msg.type === "align") {
-    const nodes = getOrderedNodes();
-    const parentPairs = getParentAlignmentPairs(nodes);
-
-    if (shouldUseParentMode(nodes, parentPairs) && parentPairs) {
-      let anyMoved = false;
-      let blockedReason = null;
-      let blockedName = "";
-
-      for (let i = 0; i < parentPairs.length; i++) {
-        const { node, parentFrame } = parentPairs[i];
-        const reason = getNonMovableReason(node, false);
-        if (reason) {
-          blockedReason = reason;
-          blockedName = node.name;
-          continue;
-        }
-        try {
-          if (alignSingleNodeToTarget(node, parentFrame, msg.direction)) {
-            anyMoved = true;
-          }
-        } catch (err) {
-          blockedReason = "cannot be moved";
-          blockedName = node.name;
-        }
-      }
-
-      if (anyMoved) {
-        figma.commitUndo();
-      } else if (blockedReason) {
-        figma.notify(`Cannot move "${blockedName}" because it ${blockedReason}.`, { error: true });
-      }
-      sendSelectionState();
-      return;
-    }
-
-    const pair = validateAndPreparePairNodes(nodes);
-    if (!pair) return;
-
-    try {
-      const moved = alignSingleNodeToTarget(pair.first, pair.second, msg.direction);
-      if (moved) figma.commitUndo();
-      sendSelectionState();
-    } catch (err) {
-      figma.notify(`Cannot move "${pair.first.name}".`, { error: true });
-    }
-  }
-
-  if (msg.type === "apply-gap") {
-    const nodes = getOrderedNodes();
-    const parentPairs = getParentAlignmentPairs(nodes);
+    executeAction((first, second) => alignNode(first, second, msg.direction));
+  } else if (msg.type === "apply-gap") {
     const gap = typeof msg.gap === "number" && !isNaN(msg.gap) ? msg.gap : 0;
-
-    if (shouldUseParentMode(nodes, parentPairs) && parentPairs) {
-      let anyMoved = false;
-      let blockedReason = null;
-      let blockedName = "";
-
-      for (let i = 0; i < parentPairs.length; i++) {
-        const { node, parentFrame } = parentPairs[i];
-        const reason = getNonMovableReason(node, false);
-        if (reason) {
-          blockedReason = reason;
-          blockedName = node.name;
-          continue;
-        }
-        try {
-          if (applyGapSingleNodeToTarget(node, parentFrame, msg.axis, gap)) {
-            anyMoved = true;
-          }
-        } catch (err) {
-          blockedReason = "cannot be moved";
-          blockedName = node.name;
-        }
-      }
-
-      if (anyMoved) {
-        figma.commitUndo();
-      } else if (blockedReason) {
-        figma.notify(`Cannot move "${blockedName}" because it ${blockedReason}.`, { error: true });
-      }
-      sendSelectionState();
-      return;
-    }
-
-    const pair = validateAndPreparePairNodes(nodes);
-    if (!pair) return;
-
-    try {
-      const moved = applyGapSingleNodeToTarget(pair.first, pair.second, msg.axis, gap);
-      if (moved) figma.commitUndo();
-      sendSelectionState();
-    } catch (err) {
-      figma.notify(`Cannot move "${pair.first.name}".`, { error: true });
-    }
-  }
-
-  if (msg.type === "close") {
-    figma.closePlugin();
+    executeAction((first, second) => applyGapNode(first, second, msg.axis, gap));
   }
 };
